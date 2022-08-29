@@ -25,9 +25,10 @@ func CreateApp() *tview.Application {
     flex.SetDirection(tview.FlexRow)
 
     page := tview.NewPages()
-    page.AddPage("vm", still(), true, true)
+    page.AddPage("vm", CreateVMUI(app), true, true)
     page.AddPage("volume", still(), true, true)
     page.AddPage("network", still(), true, true)
+    page.SwitchToPage("vm")
 
     btVM := tview.NewButton("VMs").SetSelectedFunc(func() {
         page.SwitchToPage("vm")
@@ -57,16 +58,21 @@ func CreateApp() *tview.Application {
         case tcell.KeyLeft:
             if btVolume.HasFocus() {
                 app.SetFocus(btVM)
+                page.SwitchToPage("vm")
             } else if btNetwork.HasFocus() {
                 app.SetFocus(btVolume)
+                page.SwitchToPage("volume")
             } else if btQuit.HasFocus() {
                 app.SetFocus(btNetwork)
+                page.SwitchToPage("network")
             }
         case tcell.KeyRight:
             if btVM.HasFocus() {
                 app.SetFocus(btVolume)
+                page.SwitchToPage("volume")
             } else if btVolume.HasFocus() {
                 app.SetFocus(btNetwork)
+                page.SwitchToPage("network")
             } else if btNetwork.HasFocus() {
                 app.SetFocus(btQuit)
             }

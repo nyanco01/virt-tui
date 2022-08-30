@@ -30,21 +30,23 @@ func CreateApp() *tview.Application {
     page.AddPage("network", still(), true, true)
     page.SwitchToPage("vm")
 
-    btVM := tview.NewButton("VMs").SetSelectedFunc(func() {
+    btVM := tview.NewButton("[#F66640::b]VMs").SetSelectedFunc(func() {
         page.SwitchToPage("vm")
     })
-    btVolume := tview.NewButton("Volume").SetSelectedFunc(func() {
+    btVM.SetBackgroundColor(tcell.NewRGBColor(120, 120, 120))
+    //btVM.SetLabelColor(tcell.NewRGBColor(19, 83, 112))
+    btVolume := tview.NewButton("[#FFE15C]Volume").SetSelectedFunc(func() {
         page.SwitchToPage("volume")
     })
-    btNetwork := tview.NewButton("Network").SetSelectedFunc(func() {
+    btVolume.SetBackgroundColor(tcell.NewRGBColor(80, 80, 80))
+    btNetwork := tview.NewButton("[#1C7AA2]Network").SetSelectedFunc(func() {
         page.SwitchToPage("network")
     })
-    btQuit := tview.NewButton("Quit").SetSelectedFunc(func() {
+    btNetwork.SetBackgroundColor(tcell.NewRGBColor(120, 120, 120))
+    btQuit := tview.NewButton("[#6DC1B3]Quit").SetSelectedFunc(func() {
         app.Stop()
     })
-
-
-
+    btQuit.SetBackgroundColor(tcell.NewRGBColor(80, 80, 80))
 
     // flexMenu is a Flex that is created to organize buttons for switching between pages.
     flexMenu := tview.NewFlex().
@@ -76,6 +78,8 @@ func CreateApp() *tview.Application {
             } else if btNetwork.HasFocus() {
                 app.SetFocus(btQuit)
             }
+        case tcell.KeyTab:
+            app.SetFocus(page)
         }
 
         return event

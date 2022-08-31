@@ -1,17 +1,18 @@
 package tui
 
 import (
-    "log"
-    "fmt"
-    "time"
+	"fmt"
+	"log"
+	"time"
 
-    "github.com/gdamore/tcell/v2"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	libvirt "libvirt.org/libvirt-go"
 
-    "github.com/nyanco01/virt-tui/src/virt"
+	"github.com/nyanco01/virt-tui/src/virt"
 )
 
+var VirtualMachineStatus    map[string]bool
 
 type CPU struct {
     *tview.Box
@@ -282,7 +283,13 @@ func (m *Mem)Update(max, used uint64){
         m.usage[i+1] = m.usage[i]
     }
 
-    m.usage[0] = float64(used * 100 / max)
+    // I can't get memory values for a little while after the VM starts up.
+    // So I added it to avoid causing panic.
+    if max == 0 {
+        m.usage[0] = 0.0
+    } else {
+        m.usage[0] = float64(used * 100 / max)
+    }
 }
 
 // -------------------------------- Disk --------------------------------
@@ -624,21 +631,118 @@ func VMStatusUpdate(app *tview.Application, d *libvirt.Domain, cpu *CPU, mem *Me
     oldUsage, _ := virt.GetCPUUsage(d)  // cpu
     oldTX, oldRX := virt.GetNICStatus(d)  // nic
 
+    timeCnt := 0
     for range time.Tick(sec) {
-        newUsage, cnt := virt.GetCPUUsage(d)  // cpu
-        newTX, newRX := virt.GetNICStatus(d)  // nic
+        b, _ := d.IsActive()
+        if b && (timeCnt > 3) {
+            newUsage, cnt := virt.GetCPUUsage(d)  // cpu
+            newTX, newRX := virt.GetNICStatus(d)  // nic
 
-        max, used := virt.GetMemUsed(d)  // memory
-        app.QueueUpdateDraw(func() {
-            cpu.Update(float64((newUsage - oldUsage) / (uint64(cnt) * 10000000)))  // cpu
-            mem.Update(max, used)
-            nic.Update(newTX - oldTX, newRX - oldRX)
+            max, used := virt.GetMemUsed(d)  // memory
+            app.QueueUpdateDraw(func() {
+                cpu.Update(float64((newUsage - oldUsage) / (uint64(cnt) * 10000000)))  // cpu
+                mem.Update(max, used)
+                nic.Update(newTX - oldTX, newRX - oldRX)
+            })
+
+            oldUsage = newUsage  //cpu
+            oldTX = newTX
+            oldRX = newRX
+        }
+        timeCnt++
+        if !VirtualMachineStatus[name] {
+            break
+        }
+    }
+}
+
+func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
+    //Dedicated Modal for placing specific Primitive items inside.
+	modal := func(p tview.Primitive, width, height int) tview.Primitive {
+		return tview.NewFlex().
+			AddItem(nil, 0, 1, false).
+			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+				AddItem(nil, 0, 1, false).
+				AddItem(p, height, 1, true).
+				AddItem(nil, 0, 1, false), width, 1, true).
+			AddItem(nil, 0, 1, false)
+	}
+
+    btStart := tview.NewButton("Start")
+    btReboot := tview.NewButton("Reboot")
+    btReboot.SetBackgroundColorActivated(tcell.ColorDarkGray).
+        SetLabelColor(tcell.ColorWhiteSmoke).
+        SetBackgroundColor(tcell.ColorDarkGray)
+    btShutdown := tview.NewButton("Shutdown")
+    btDestroy := tview.NewButton("Destroy")
+
+    flex := tview.NewFlex().SetDirection(tview.FlexRow)
+    flex.SetBorder(true).SetTitle(fmt.Sprintf("%s %v", vm.Name, vm.Status))
+    flex.AddItem(btStart, 3, 0, true)
+    flex.AddItem(btReboot, 3, 0, false)
+    flex.AddItem(btShutdown, 3, 0 ,false)
+    flex.AddItem(btDestroy, 3, 0, false)
+
+    if vm.Status {
+        btStart.SetBackgroundColorActivated(tcell.ColorDarkGray).
+            SetLabelColor(tcell.ColorWhiteSmoke).
+            SetBackgroundColor(tcell.ColorDarkGray)
+        btShutdown.SetBackgroundColorActivated(tcell.ColorWhiteSmoke).
+            SetLabelColor(tcell.ColorOrangeRed).
+            SetBackgroundColor(tcell.ColorWhiteSmoke)
+        btDestroy.SetBackgroundColorActivated(tcell.ColorWhiteSmoke).
+            SetLabelColor(tcell.ColorRed).
+            SetBackgroundColor(tcell.ColorWhiteSmoke)
+
+        btShutdown.SetSelectedFunc(func() {
+            _ = vm.Domain.Shutdown()
+            time.Sleep(time.Millisecond * 500)
+            page.RemovePage(vm.Name)
+            page.AddAndSwitchToPage(vm.Name, NotUpVM(vm.Name), true)
+            VirtualMachineStatus[vm.Name] = false
+            list.SetItemText(list.GetCurrentItem(), vm.Name, "shutdown")
+            app.SetFocus(list)
+        })
+        btDestroy.SetSelectedFunc(func() {
+            _ = vm.Domain.Destroy()
+            time.Sleep(time.Millisecond * 500)
+            page.RemovePage(vm.Name)
+            page.AddAndSwitchToPage(vm.Name, NotUpVM(vm.Name), true)
+            VirtualMachineStatus[vm.Name] = false
+            list.SetItemText(list.GetCurrentItem(), vm.Name, "shutdown")
+            app.SetFocus(list)
         })
 
-        oldUsage = newUsage  //cpu
-        oldTX = newTX
-        oldRX = newRX
+    } else {
+        btStart.SetBackgroundColorActivated(tcell.ColorWhiteSmoke).
+            SetLabelColor(tcell.ColorGreen).
+            SetBackgroundColor(tcell.ColorWhiteSmoke)
+        btShutdown.SetBackgroundColorActivated(tcell.ColorDarkGray).
+            SetLabelColor(tcell.ColorWhiteSmoke).
+            SetBackgroundColor(tcell.ColorDarkGray)
+        btDestroy.SetBackgroundColorActivated(tcell.ColorDarkGray).
+            SetLabelColor(tcell.ColorWhiteSmoke).
+            SetBackgroundColor(tcell.ColorDarkGray)
+
+        btStart.SetSelectedFunc(func() {
+            _ = vm.Domain.Create()
+            dur := time.Millisecond * 200
+            for range time.Tick(dur) {
+                b, _ := vm.Domain.IsActive()
+                if b {
+                    break
+                }
+            }
+            page.RemovePage("OnOff")
+            VirtualMachineStatus[vm.Name] = true
+            page.RemovePage(vm.Name)
+            page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm.Domain, vm.Name), true)
+            list.SetItemText(list.GetCurrentItem(), vm.Name, "")
+            app.SetFocus(list)
+        })
     }
+
+    return modal(flex, 40, 20)
 }
 
 func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
@@ -646,15 +750,18 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40,40,40))
 
-    l := virt.LookupVMs(con)
-    for i, vm := range l {
+    VirtualMachineStatus = map[string]bool{}
 
+    vms := virt.LookupVMs(con)
+    for i, vm := range vms {
         if vm.Status {
             list.AddItem(vm.Name, "", rune(i)+'0', nil)
             page.AddPage(vm.Name, NewVMStatus(app, vm.Domain, vm.Name), true, true)
+            VirtualMachineStatus[vm.Name] = true
         } else {
             list.AddItem(vm.Name, "shutdown", rune(i)+'0', nil)
             page.AddPage(vm.Name, NotUpVM(vm.Name), true, true)
+            VirtualMachineStatus[vm.Name] = false
         }
     }
 
@@ -675,12 +782,33 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         return event
     })
 
+
+    list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
+        var vmCrnt virt.VM
+        vms = virt.LookupVMs(con)
+        for _, vm := range vms {
+            if vm.Name == s1 {
+                vmCrnt = vm
+            }
+        }
+        modal := CreateOnOffModal(app, vmCrnt, page, list)
+        if page.HasPage("OnOff") {
+            page.RemovePage("OnOff")
+        }
+        page.AddPage("OnOff", modal, true, true)
+        page.ShowPage("OnOff")
+        app.SetFocus(modal)
+    })
+    list.SetDoneFunc(func() {
+        a, _ := list.GetItemText(list.GetCurrentItem())
+        page.SwitchToPage(a)
+    })
+
     main, _ := list.GetItemText(list.GetCurrentItem())
     page.SwitchToPage(main)
 
     _, _, w, _ := list.GetInnerRect()
     flex.AddItem(list, w + 5, 1, true)
-
 
     return flex
 }

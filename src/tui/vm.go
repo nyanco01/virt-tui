@@ -12,29 +12,18 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
+//Dedicated Modal for placing specific Primitive items inside.
+func pageModal(p tview.Primitive, width, height int) tview.Primitive {
+	return tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+		    AddItem(nil, 0, 1, false).
+			AddItem(p, height, 1, true).
+			AddItem(nil, 0, 1, false), width, 1, true).
+	    	AddItem(nil, 0, 1, false)
+}
 
 func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
-    //Dedicated Modal for placing specific Primitive items inside.
-	modal := func(p tview.Primitive, width, height int) tview.Primitive {
-		return tview.NewFlex().
-			AddItem(nil, 0, 1, false).
-			AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-				AddItem(nil, 0, 1, false).
-				AddItem(p, height, 1, true).
-				AddItem(nil, 0, 1, false), width, 1, true).
-			AddItem(nil, 0, 1, false)
-	}
-
-    /*
-    SettingButton := func(bt tview.Button, label string) tview.Button {
-        bt.SetBackgroundColorActivated(tcell.ColorDarkSlateGray).SetLabelColor(tcell.ColorWhiteSmoke).SetBackgroundColor(tcell.ColorDarkSlateGray)
-        bt.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-
-        })
-
-        return bt
-    }
-    */
 
     btStart     := tview.NewButton("Start")
     btReboot    := tview.NewButton("Reboot")
@@ -135,7 +124,8 @@ func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, lis
         })
     }
 
-    return modal(flex, 40, 20)
+    //return modal(flex, 30, 20)
+    return pageModal(flex, 30, 20)
 }
 
 func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
@@ -175,7 +165,6 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         return event
     })
 
-
     list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
         var vmCrnt virt.VM
         vms = virt.LookupVMs(con)
@@ -200,8 +189,40 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     main, _ := list.GetItemText(list.GetCurrentItem())
     page.SwitchToPage(main)
 
+    btCreate := tview.NewButton("Create")
+
+    list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {
+            if (list.GetItemCount() - 1) == list.GetCurrentItem() {
+                app.SetFocus(btCreate)
+                return nil
+            }
+        }
+        return event
+    })
+    btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        switch event.Key() {
+        case tcell.KeyTab, tcell.KeyDown:
+            list.SetCurrentItem(0)
+            app.SetFocus(list)
+            return nil
+        case tcell.KeyBacktab, tcell.KeyUp:
+            list.SetCurrentItem(list.GetItemCount() - 1)
+            app.SetFocus(list)
+            return nil
+        }
+        return event
+    })
+
+    /*
     _, _, w, _ := list.GetInnerRect()
     flex.AddItem(list, w + 5, 1, true)
+    flex.AddItem(btCreate, 5, 1, false)
+    */
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(list, 0, 1, true).
+        AddItem(btCreate, 5, 0, false)
 
     return flex
 }

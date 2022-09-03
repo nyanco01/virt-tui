@@ -2,11 +2,17 @@ package virt
 
 import (
     "log"
+    "sort"
 
 	libvirt "libvirt.org/libvirt-go"
 	libvirtxml "libvirt.org/libvirt-go-xml"
 )
 
+type PoolInfos struct {
+    Name        []string
+    Avalable    []uint64
+    Path        []string
+}
 
 type VM struct {
     Domain          *libvirt.Domain
@@ -139,4 +145,48 @@ func LookupVMs(c *libvirt.Connect) []VM {
         vms = append(vms, vm)
     }
     return vms
+}
+
+func GetNodeMax(c *libvirt.Connect) (maxCPU int, maxMem uint64) {
+    nodeInfo, err := c.GetNodeInfo()
+    if err != nil {
+        log.Fatalf("failed to get node info: %v", err)
+    }
+    maxCPU = int(nodeInfo.Cpus) - 2
+    maxMem = nodeInfo.Memory - uint64(2 * 1024 * 1024)
+    return
+}
+
+func GetUsedResources(vms []VM) (name []string, vnc []int) {
+    var domainXml libvirtxml.Domain
+    for _, vm := range vms {
+        xml, _ := vm.Domain.GetXMLDesc(0)
+        domainXml.Unmarshal(xml)
+        name = append(name, domainXml.Name)
+        for _, graphics := range domainXml.Devices.Graphics {
+            vnc = append(vnc, graphics.VNC.Port)
+        }
+    }
+    sort.Slice(vnc, func(i, j int) bool { return vnc[i] < vnc[j] })
+    return
+}
+
+func GetPoolList(c *libvirt.Connect) PoolInfos {
+    pools, err := c.ListAllStoragePools(0)
+    if err != nil {
+        log.Fatalf("failed to get pools: %v", err)
+    }
+    var xmlPool libvirtxml.StoragePool
+    var Infos PoolInfos
+    for _, pool := range pools {
+        xml, err := pool.GetXMLDesc(1)
+        if err != nil {
+            log.Fatalf("failed to get pool xml: %s", err)
+        }
+        xmlPool.Unmarshal(xml)
+        Infos.Name = append(Infos.Name, xmlPool.Name)
+        Infos.Avalable = append(Infos.Avalable, xmlPool.Available.Value)
+        Infos.Path = append(Infos.Path, xmlPool.Target.Path)
+    }
+    return Infos
 }

@@ -214,6 +214,16 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         return event
     })
 
+    btCreate.SetSelectedFunc(func() {
+        modal := CreateMakeVM(app, con, page, list)
+        if page.HasPage("OnOff") {
+            page.RemovePage("OnOff")
+        }
+        page.AddPage("OnOff", modal, true, true)
+        page.ShowPage("OnOff")
+        app.SetFocus(modal)
+    })
+
     /*
     _, _, w, _ := list.GetInnerRect()
     flex.AddItem(list, w + 5, 1, true)

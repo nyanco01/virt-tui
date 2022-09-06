@@ -26,6 +26,38 @@ type Diskinfo struct {
     Allocation      uint64
 }
 
+type CreateRequest struct {
+    DomainName      string
+    CPUNum          int
+    MemNum          int
+    DiskPath        string
+    DiskSize        int
+    VNCPort         int
+    HostName        string
+    UserName        string
+    UserPassword    string
+}
+
+func butItemCheck(item string) string {
+    switch item {
+    case "VMName":
+        return "VM name field is wrong."
+    case "Memory":
+        return "Memory field is wrong."
+    case "Disk":
+        return "Disk field is wrong."
+    case "VNC":
+        return "VNC Port field is wrong."
+    case "HostName":
+        return "No host name"
+    case "UserName":
+        return "No user name"
+    case "UserPass":
+        return "No user password"
+    }
+    return ""
+}
+
 func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
     cpuGuest, err := d.GetVcpus()
     if err != nil {
@@ -190,3 +222,65 @@ func GetPoolList(c *libvirt.Connect) PoolInfos {
     }
     return Infos
 }
+
+func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, ErrInfo string) {
+    vms := LookupVMs(con)
+    _, maxMem := GetNodeMax(con)
+    listVMName, listVNCPort := GetUsedResources(vms)
+    //listPool := GetPoolList(con)
+
+    check := map[string]bool{}
+
+    // domain name check
+    check["VMName"] = true
+    for _, n := range listVMName {
+        if n == request.DomainName {
+            check["VMName"] = false
+        }
+    }
+    if request.DomainName == "" { check["VMName"] = false }
+    // memory size check
+    if request.MemNum > int(maxMem / 1024) {
+        check["Memory"] = false
+    }
+    if request.MemNum == 0 { check["Memory"] = false }
+    // Disk
+    pool, _ := con.LookupStoragePoolByTargetPath(request.DiskPath)
+    poolInfo, _ := pool.GetInfo()
+    ava := int(poolInfo.Available / uint64(1024*1024*1024)) - 2
+    if request.DiskSize > ava {
+        check["Disk"] = false
+    }
+    if request.DiskSize == 0 { check["Disk"] = false }
+    // VNC port check
+    for _, p := range listVNCPort {
+        if p == request.VNCPort {
+            check["VNC"] = false
+        }
+    }
+    if request.VNCPort == 0 { check["VNC"] = false }
+    // host name check
+    if request.HostName == "" { check["HostName"] = false }
+    // user name check
+    if request.UserName == "" { check["UserName"] = false }
+    // user password check
+    if request.UserPassword == "" { check["UserPass"] = false }
+
+    OK = true
+    out := ""
+    for key, value := range check {
+        if !value {
+            out = key
+            OK = false
+            break
+        }
+    }
+    if OK {
+        ErrInfo = ""
+    } else {
+        ErrInfo = butItemCheck(out)
+    }
+    return
+}
+
+//func CreateDomain(request CreateRequest) {}

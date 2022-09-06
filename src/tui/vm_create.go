@@ -11,7 +11,7 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
-func butItem(item string) string {
+func butItemCheck(item string) string {
     switch item {
     case "VMName":
         return "VM name field is wrong."
@@ -31,11 +31,11 @@ func butItem(item string) string {
     return ""
 }
 
-func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView) *tview.Form {
+func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List) *tview.Form {
     // get libvirt status
     vms := virt.LookupVMs(con)
     maxCPUs, maxMem := virt.GetNodeMax(con)
-    listVMName, listVNCPort := virt.GetUsedResources(vms)
+    _, listVNCPort := virt.GetUsedResources(vms)
     listPool := virt.GetPoolList(con)
 
     form := tview.NewForm()
@@ -74,7 +74,7 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     form.GetFormItem(3).(*tview.DropDown).SetDoneFunc(func(key tcell.Key) {
         if (key == tcell.KeyTab) || (key == tcell.KeyBacktab) {
             index, _ := form.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
-            form.GetFormItem(4).(*tview.InputField).SetLabel(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[index] - uint64(1024*1024*1024)) / uint64(1024*1024*1024)) ))
+            form.GetFormItem(4).(*tview.InputField).SetLabel(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[index] - uint64(2*1024*1024*1024)) / uint64(1024*1024*1024)) ))
         }
     })
 
@@ -87,60 +87,30 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     form.AddPasswordField("user password", "", 30, '*', nil)
 
     form.AddButton("Create", func() {
-        check := map[string]bool{}
-        // VM Name
-        nameVM := form.GetFormItem(0).(*tview.InputField).GetText()
-        check["VMName"] = true
-        for _, n := range listVMName {
-            if n == nameVM {
-                check["VMName"] = false
-            }
-        }
-        if nameVM == "" { check["VMName"] = false }
-        // Memory
+        _, cpunum := form.GetFormItem(1).(*tview.DropDown).GetCurrentOption()
+        cpu, _ := strconv.Atoi(cpunum)
         memSize, _ := strconv.Atoi(form.GetFormItem(2).(*tview.InputField).GetText())
-        if memSize > int(maxMem / 1024) {
-            check["Memory"] = false
+        poolIndex, _ := form.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
+        dSize, _ := strconv.Atoi(form.GetFormItem(4).(*tview.InputField).GetText())
+        VNCp, _ := strconv.Atoi(form.GetFormItem(5).(*tview.InputField).GetText())
+        request := virt.CreateRequest{
+            DomainName:     form.GetFormItem(0).(*tview.InputField).GetText(),
+            CPUNum:         cpu,
+            MemNum:         memSize,
+            DiskPath:       listPool.Path[poolIndex],
+            DiskSize:       dSize,
+            VNCPort:        VNCp,
+            HostName:       form.GetFormItem(6).(*tview.InputField).GetText(),
+            UserName:       form.GetFormItem(7).(*tview.InputField).GetText(),
+            UserPassword:   form.GetFormItem(8).(*tview.InputField).GetText(),
         }
-        if memSize == 0 { check["Memory"] = false }
-        // Disk
-        diskSize, _ := strconv.Atoi(form.GetFormItem(4).(*tview.InputField).GetText())
-        if diskSize > 50 {
-            check["Disk"] = false
-        }
-        if diskSize == 0 { check["Disk"] = false }
-        // VNC Port
-        port, _ := strconv.Atoi(form.GetFormItem(5).(*tview.InputField).GetText())
-        for _, p := range listVNCPort {
-            if p == port {
-                check["VNC"] = false
-            }
-        }
-        if port == 0 { check["VNC"] = false }
-        // Host name
-        hostName := form.GetFormItem(6).(*tview.InputField).GetText()
-        if hostName == "" { check["HostName"] = false }
-        // User name
-        userName := form.GetFormItem(7).(*tview.InputField).GetText()
-        if userName == "" { check["UserName"] = false }
-        // User password
-        userPass := form.GetFormItem(8).(*tview.InputField).GetText()
-        if userPass == "" { check["UserPass"] = false }
 
-        b := true
-        out := ""
-        for key, value := range check {
-            if !value {
-                out = key
-                b = false
-                break
-            }
-        }
+        b, ErrInfo := virt.CheckCreateRequest(request, con)
+
         if b {
-
+            view.SetText("OK!").SetTextColor(tcell.ColorSkyblue)
         } else {
-            notice := butItem(out)
-            view.SetText(notice).SetTextColor(tcell.ColorRed)
+            view.SetText(ErrInfo).SetTextColor(tcell.ColorRed)
         }
     })
     form.AddButton("Cancel", func() {
@@ -154,7 +124,7 @@ func CreateMakeVM(app *tview.Application, con *libvirt.Connect, page *tview.Page
     flex := tview.NewFlex()
     view := tview.NewTextView()
 
-    form := makeVMForm(app, con, view)
+    form := makeVMForm(app, con, view, list)
 
     flex.SetDirection(tview.FlexRow).
         AddItem(form, 0, 1, true).

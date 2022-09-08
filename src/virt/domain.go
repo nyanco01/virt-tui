@@ -1,9 +1,10 @@
 package virt
 
 import (
-    "log"
-    "sort"
+	"log"
+	"sort"
 
+	"github.com/nyanco01/virt-tui/src/operate"
 	libvirt "libvirt.org/libvirt-go"
 	libvirtxml "libvirt.org/libvirt-go-xml"
 )
@@ -283,4 +284,98 @@ func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, E
     return
 }
 
-//func CreateDomain(request CreateRequest) {}
+func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, status chan string) {
+    if !operate.FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img") {
+        status <- "Download image file"
+        operate.DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img","./data/image", c)
+    } else {
+        c <- 70.0
+    }
+    status <- "Create volume"
+    CreateVol("ubuntu-20.04-server-cloudimg-amd64.img", request.DiskPath, request.DomainName, request.DiskSize, con)
+    c <- 80.0
+    // cloud-init make iso file
+    status <- "cloud-init"
+    operate.MakeISO(request.UserName, request.UserPassword, request.HostName, request.DomainName)
+    c <- 85.0
+    // create xml file
+    status <- "Create xml file"
+    xml := CreateDomainXML(request.DomainName, request.DiskPath, request.CPUNum, request.MemNum, request.VNCPort)
+    c <- 90.0
+    // create domain
+    dom, err := con.DomainDefineXML(xml)
+    if err!=nil {
+        log.Fatalf("failed to create domain: %v", err)
+    }
+    c <- 95.0
+    dom.Free()
+    c <- 100.0
+}
+
+func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
+    tmpXML := operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
+    var domXML libvirtxml.Domain
+    domXML.Unmarshal(tmpXML)
+    domXML.Name = domain
+    domXML.UUID = operate.CreateUUID()
+    domXML.VCPU.Value = uint(vcpu)
+    domXML.Memory.Value = uint(mem*1024)
+    domXML.CurrentMemory.Value = uint(mem*1024)
+    for _, disk := range domXML.Devices.Disks {
+        if disk.Device == "disk" {
+            disk.Source.File.File = diskPath + "/" + domain
+        } else if disk.Device == "cdrom" {
+            disk.Source.File.File = operate.GetPWD() + "/tmp/iso/" + domain + ".iso"
+        }
+    }
+    for _, graphics := range domXML.Devices.Graphics {
+        graphics.VNC.Port = vnc
+    }
+    xmlData, _ := domXML.Marshal()
+    return xmlData
+}
+
+func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
+    // connect pool
+    pool, err := con.LookupStoragePoolByTargetPath(path)
+    if err != nil {
+        log.Fatalf("failed to get pool: %v", err)
+    }
+    // create xml file
+    xml := CreateVolXML(path, name, resize)
+    vol, _ := pool.StorageVolCreateXML(xml, 1)
+
+    //Move image files to pool
+    src := "./data/image/" + item
+    dst := path + "/" + name
+    operate.FileCopy(src, dst)
+    vol.Resize(uint64(resize*1024*1024*1024), 1)
+
+    /*
+    volList, _ := pool.ListAllStorageVolumes(0)
+    var vol libvirt.StorageVol
+    for _, v := range volList {
+        volname, _ := v.GetName()
+        if volname == name {
+            vol = v
+        }
+    }
+    vol.Resize(uint64(resize*1024*1024*1024), 1)
+    getname, _ := vol.GetName()
+    fmt.Println(getname)
+    */
+}
+
+func CreateVolXML(path, name string, resize int) string {
+    tmpXML := operate.FileRead("./data/xml/volume/qcow2.xml")
+    var volXML libvirtxml.StorageVolume
+    volXML.Unmarshal(tmpXML)
+    volXML.Name = name
+    volXML.Key = path + "/" + name
+    volXML.Target.Path = path + "/" + name
+    volXML.Capacity.Value = uint64(resize*1024*1024*1024)
+
+    xmlData, _ := volXML.Marshal()
+    //operate.FileWrite("./tmp/xml/volume", name, xmlData)
+    return xmlData
+}

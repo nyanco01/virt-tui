@@ -2,7 +2,8 @@ package tui
 
 import (
 	"fmt"
-    "strconv"
+	"strconv"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -11,27 +12,84 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
-func butItemCheck(item string) string {
-    switch item {
-    case "VMName":
-        return "VM name field is wrong."
-    case "Memory":
-        return "Memory field is wrong."
-    case "Disk":
-        return "Disk field is wrong."
-    case "VNC":
-        return "VNC Port field is wrong."
-    case "HostName":
-        return "No host name"
-    case "UserName":
-        return "No user name"
-    case "UserPass":
-        return "No user password"
-    }
-    return ""
+type ProgressBar struct {
+    *tview.Box
+    rate        float64
 }
 
-func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List) *tview.Form {
+func NewProgressBar() *ProgressBar {
+    return &ProgressBar {
+        Box:    tview.NewBox(),
+        rate:   0.0,
+    }
+}
+
+func (p *ProgressBar)Draw(screen tcell.Screen) {
+    p.Box.DrawForSubclass(screen, p)
+    x, y, w, _ := p.GetInnerRect()
+
+    gradient := float64(100) / float64(w * 8)
+
+    bar := ""
+    r := p.rate
+    for i := 0; i < w; i++ {
+        if r > (gradient * 8) {
+            bar += "█"
+            r -= gradient * 8
+        } else {
+            switch int(r / gradient) {
+            case 0:
+                break
+            case 1:
+                bar += "▏"
+            case 2:
+                bar += "▎"
+            case 3:
+                bar += "▍"
+            case 4:
+                bar += "▌"
+            case 5:
+                bar += "▋"
+            case 6:
+                bar += "▊"
+            case 7:
+                bar += "▉"
+            }
+            r = 0
+        }
+    }
+    tview.Print(screen, bar, x, y, w, tview.AlignLeft, tcell.ColorSkyblue)
+}
+
+func (p *ProgressBar)Update(newrate float64) {
+    p.rate = newrate
+}
+
+func UpdateBar(c chan float64, status chan string, p *ProgressBar, view *tview.TextView, app *tview.Application) {
+    for {
+        select {
+        case par := <-c:
+            app.QueueUpdateDraw(func() {
+                p.Update(par)
+            })
+        case st := <- status:
+            app.QueueUpdateDraw(func() {
+                view.SetText(st)
+            })
+        default:
+            time.Sleep(500 * time.Millisecond)
+        }
+    }
+    /*
+    for i := range c {
+        app.QueueUpdateDraw(func() {
+            p.Update(i)
+        })
+    }
+    */
+}
+
+func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, bar *ProgressBar) *tview.Form {
     // get libvirt status
     vms := virt.LookupVMs(con)
     maxCPUs, maxMem := virt.GetNodeMax(con)
@@ -109,6 +167,11 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
 
         if b {
             view.SetText("OK!").SetTextColor(tcell.ColorSkyblue)
+            c := make(chan float64)
+            statusTxt := make(chan string)
+            go virt.CreateDomain(request, con, c, statusTxt)
+            go UpdateBar(c, statusTxt, bar, view, app)
+
         } else {
             view.SetText(ErrInfo).SetTextColor(tcell.ColorRed)
         }
@@ -122,12 +185,15 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
 
 func CreateMakeVM(app *tview.Application, con *libvirt.Connect, page *tview.Pages, list *tview.List) tview.Primitive {
     flex := tview.NewFlex()
+    flex.SetBorder(true).SetTitle("Create Menu")
+    bar := NewProgressBar()
     view := tview.NewTextView()
 
-    form := makeVMForm(app, con, view, list)
+    form := makeVMForm(app, con, view, list, bar)
 
     flex.SetDirection(tview.FlexRow).
         AddItem(form, 0, 1, true).
+        AddItem(bar, 1, 0, false).
         AddItem(view, 1, 0, false)
 
 

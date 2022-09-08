@@ -303,12 +303,14 @@ func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, s
     xml := CreateDomainXML(request.DomainName, request.DiskPath, request.CPUNum, request.MemNum, request.VNCPort)
     c <- 90.0
     // create domain
-    dom, err := con.DomainDefineXML(xml)
+    //dom, err := con.DomainDefineXML(xml)
+    _, err :=con.DomainDefineXML(xml)
     if err!=nil {
         log.Fatalf("failed to create domain: %v", err)
     }
     c <- 95.0
-    dom.Free()
+    //dom.Free()
+    status <- "Complete !"
     c <- 100.0
 }
 
@@ -344,25 +346,31 @@ func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
     // create xml file
     xml := CreateVolXML(path, name, resize)
     vol, _ := pool.StorageVolCreateXML(xml, 1)
+    //pool.StorageVolCreateXML(xml, 1)
 
     //Move image files to pool
     src := "./data/image/" + item
     dst := path + "/" + name
     operate.FileCopy(src, dst)
-    vol.Resize(uint64(resize*1024*1024*1024), 1)
+
+    //get now capacity
+    info, _ := vol.GetInfo()
+    size := uint64(resize*1024*1024*1024) - info.Capacity
+    vol.Resize(size, 2)
 
     /*
     volList, _ := pool.ListAllStorageVolumes(0)
-    var vol libvirt.StorageVol
+    var vol *libvirt.StorageVol
     for _, v := range volList {
         volname, _ := v.GetName()
         if volname == name {
-            vol = v
+            vol = &v
         }
     }
     vol.Resize(uint64(resize*1024*1024*1024), 1)
-    getname, _ := vol.GetName()
-    fmt.Println(getname)
+    defer vol.Free()
+    //getname, _ := vol.GetName()
+    //fmt.Println(getname)
     */
 }
 

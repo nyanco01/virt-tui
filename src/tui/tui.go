@@ -17,7 +17,24 @@ func still() *tview.Box {
     return box
 }
 
+func configStyles() {
+        tview.Styles = tview.Theme{
+                PrimitiveBackgroundColor:    tcell.ColorBlack,
+                ContrastBackgroundColor:     tcell.ColorDarkBlue,
+                MoreContrastBackgroundColor: tcell.ColorGreen,
+                BorderColor:                 tcell.ColorWhite,
+                TitleColor:                  tcell.ColorWhite,
+                GraphicsColor:               tcell.ColorWhite,
+                PrimaryTextColor:            tcell.ColorGhostWhite,
+                SecondaryTextColor:          tcell.ColorYellow,
+                TertiaryTextColor:           tcell.ColorGreen,
+                InverseTextColor:            tcell.ColorDeepSkyBlue,
+                ContrastSecondaryTextColor:  tcell.ColorDarkCyan,
+        }
+}
+
 func CreateApp() *tview.Application {
+    configStyles()
     app := tview.NewApplication()
 
     // Flex for layout of buttons and pages as the main UI part

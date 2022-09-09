@@ -174,7 +174,7 @@ func DownloadFile(url string, dest string, c chan float64) {
 }
 
 func MakeISO(user, pass, host, domain string) {
-    fUser, err := os.Create("./tmp/init/" + domain +".user")
+    fUser, err := os.Create("./tmp/init/user-data")
     if err!=nil {
         panic(err)
     }
@@ -191,7 +191,7 @@ func MakeISO(user, pass, host, domain string) {
     }
     str = ""
 
-    fMeta, err := os.Create("./tmp/init/" + domain +".meta")
+    fMeta, err := os.Create("./tmp/init/meta-data")
     if err!=nil {
         panic(err)
     }
@@ -204,8 +204,8 @@ func MakeISO(user, pass, host, domain string) {
         panic(err)
     }
     path := "./tmp/iso/" + domain + ".iso"
-    u := "./tmp/init/" + domain +".user"
-    m := "./tmp/init/" + domain +".meta"
+    u := "./tmp/init/user-data"
+    m := "./tmp/init/meta-data"
     err = exec.Command("genisoimage", "-output", path, "-volid", "cidata", "-joliet", "-rock", u, m).Run()
 }
 

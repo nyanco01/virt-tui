@@ -346,7 +346,6 @@ func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
     // create xml file
     xml := CreateVolXML(path, name, resize)
     vol, _ := pool.StorageVolCreateXML(xml, 1)
-    //pool.StorageVolCreateXML(xml, 1)
 
     //Move image files to pool
     src := "./data/image/" + item
@@ -356,22 +355,8 @@ func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
     //get now capacity
     info, _ := vol.GetInfo()
     size := uint64(resize*1024*1024*1024) - info.Capacity
+    // resize
     vol.Resize(size, 2)
-
-    /*
-    volList, _ := pool.ListAllStorageVolumes(0)
-    var vol *libvirt.StorageVol
-    for _, v := range volList {
-        volname, _ := v.GetName()
-        if volname == name {
-            vol = &v
-        }
-    }
-    vol.Resize(uint64(resize*1024*1024*1024), 1)
-    defer vol.Free()
-    //getname, _ := vol.GetName()
-    //fmt.Println(getname)
-    */
 }
 
 func CreateVolXML(path, name string, resize int) string {

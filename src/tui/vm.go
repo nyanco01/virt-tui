@@ -107,7 +107,10 @@ func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, lis
         btDestroy.SetBackgroundColorActivated(tcell.ColorDarkSlateGray).SetLabelColor(tcell.ColorWhiteSmoke).SetBackgroundColor(tcell.ColorDarkSlateGray)
 
         btStart.SetSelectedFunc(func() {
-            _ = vm.Domain.Create()
+            err := vm.Domain.Create()
+            if err != nil {
+                log.Fatalf("failed to start domain: %v", err)
+            }
             dur := time.Millisecond * 200
             for range time.Tick(dur) {
                 b, _ := vm.Domain.IsActive()
@@ -190,6 +193,9 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     page.SwitchToPage(main)
 
     btCreate := tview.NewButton("Create")
+
+    //btCreate.SetBorder(true)
+    //btCreate.SetBackgroundColor(tcell.NewRGBColor(246, 102, 64))
 
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {

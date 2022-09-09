@@ -219,8 +219,8 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         if page.HasPage("OnOff") {
             page.RemovePage("OnOff")
         }
-        page.AddPage("OnOff", modal, true, true)
-        page.ShowPage("OnOff")
+        page.AddPage("Create", modal, true, true)
+        page.ShowPage("Create")
         app.SetFocus(modal)
     })
 

@@ -89,7 +89,7 @@ func UpdateBar(c chan float64, status chan string, p *ProgressBar, view *tview.T
     */
 }
 
-func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, bar *ProgressBar) *tview.Form {
+func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) *tview.Form {
     // get libvirt status
     vms := virt.LookupVMs(con)
     maxCPUs, maxMem := virt.GetNodeMax(con)
@@ -144,6 +144,10 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     // guest vm user password   item index 8
     form.AddPasswordField("user password", "", 30, '*', nil)
 
+    c := make(chan float64)
+    statusTxt := make(chan string)
+    done := make(chan int)
+
     form.AddButton("Create", func() {
         _, cpunum := form.GetFormItem(1).(*tview.DropDown).GetCurrentOption()
         cpu, _ := strconv.Atoi(cpunum)
@@ -167,11 +171,9 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
 
         if b {
             view.SetText("OK!").SetTextColor(tcell.ColorSkyblue)
-            c := make(chan float64)
-            statusTxt := make(chan string)
-            go virt.CreateDomain(request, con, c, statusTxt)
             go UpdateBar(c, statusTxt, bar, view, app)
-
+            go virt.CreateDomain(request, con, c, statusTxt, done)
+            go doneCreate(request.DomainName,con, list, page, app, done)
         } else {
             view.SetText(ErrInfo).SetTextColor(tcell.ColorRed)
         }
@@ -189,13 +191,29 @@ func CreateMakeVM(app *tview.Application, con *libvirt.Connect, page *tview.Page
     bar := NewProgressBar()
     view := tview.NewTextView()
 
-    form := makeVMForm(app, con, view, list, bar)
+    form := makeVMForm(app, con, view, list, page, bar)
 
     flex.SetDirection(tview.FlexRow).
         AddItem(form, 0, 1, true).
         AddItem(bar, 1, 0, false).
         AddItem(view, 1, 0, false)
 
+    return pageModal(flex, 65, 25)
+}
 
-    return pageModal(flex, 65, 30)
+func doneCreate(name string, con *libvirt.Connect, list *tview.List, page *tview.Pages, app *tview.Application, done chan int) {
+    <-done
+    /*
+    vm, err := con.LookupDomainByName(name)
+    if err != nil {
+        log.Fatalf("failed to get domain: %v", err)
+    }
+    defer vm.Free()
+    */
+    list.AddItem(name, "shutdown", rune(list.GetItemCount())+'0', nil)
+    list.SetCurrentItem(list.GetItemCount())
+    page.AddPage(name, NotUpVM(name), true, true)
+    app.SetFocus(list)
+    page.RemovePage("Create")
+    app.Draw()
 }

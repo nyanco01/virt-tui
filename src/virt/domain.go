@@ -3,6 +3,7 @@ package virt
 import (
 	"log"
 	"sort"
+	"time"
 
 	"github.com/nyanco01/virt-tui/src/operate"
 	libvirt "libvirt.org/libvirt-go"
@@ -284,7 +285,7 @@ func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, E
     return
 }
 
-func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, status chan string) {
+func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
     if !operate.FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img") {
         status <- "Download image file"
         operate.DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img","./data/image", c)
@@ -312,6 +313,8 @@ func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, s
     //dom.Free()
     status <- "Complete !"
     c <- 100.0
+    time.Sleep(time.Second)
+    done <- 1
 }
 
 func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {

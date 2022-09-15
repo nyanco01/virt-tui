@@ -35,6 +35,7 @@ type CreateRequest struct {
     DiskPath        string
     DiskSize        int
     VNCPort         int
+    NICBridgeIF     string
     HostName        string
     UserName        string
     UserPassword    string
@@ -305,15 +306,17 @@ func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, s
     c <- 90.0
     // create domain
     //dom, err := con.DomainDefineXML(xml)
-    _, err :=con.DomainDefineXML(xml)
+    dom, err :=con.DomainDefineXML(xml)
     if err!=nil {
         log.Fatalf("failed to create domain: %v", err)
     }
     c <- 95.0
-    //dom.Free()
-    status <- "Complete !"
+    status <- "Attach network interface"
+    AttachBridgeNIC(dom, request.NICBridgeIF)
     c <- 100.0
+    status <- "Complete !"
     time.Sleep(time.Second)
+    dom.Free()
     done <- 1
 }
 
@@ -374,4 +377,19 @@ func CreateVolXML(path, name string, resize int) string {
     xmlData, _ := volXML.Marshal()
     //operate.FileWrite("./tmp/xml/volume", name, xmlData)
     return xmlData
+}
+
+func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
+    var nicXML libvirtxml.DomainInterface
+    nicXML.Unmarshal(operate.FileRead("./data/xml/network/bridge.xml"))
+    nicXML.Source.Bridge.Bridge = ifName
+    nicXML.MAC.Address = operate.NewBridgeMAC(ifName)
+    xml, err := nicXML.Marshal()
+    if err != nil {
+        log.Fatalf("failed to marshal xml: %v", err)
+    }
+    err = d.AttachDeviceFlags(xml, 2)
+    if err != nil {
+        log.Fatalf("failed to attach network interface: %v\n", err)
+    }
 }

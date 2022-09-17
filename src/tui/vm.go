@@ -189,8 +189,11 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         page.SwitchToPage(a)
     })
 
-    main, _ := list.GetItemText(list.GetCurrentItem())
-    page.SwitchToPage(main)
+    // Check if the number of VMs is not zero
+    if list.GetCurrentItem() != 0 {
+        main, _ := list.GetItemText(list.GetCurrentItem())
+        page.SwitchToPage(main)
+    }
 
     btCreate := tview.NewButton("Create")
 

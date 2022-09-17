@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -88,8 +89,17 @@ func UpdateBar(c chan float64, status chan string, p *ProgressBar, view *tview.T
     }
 }
 
+func errorForm(app *tview.Application, list *tview.List, page *tview.Pages) *tview.Form {
+    form := tview.NewForm()
+    form.AddButton("Cancel", func() {
+        page.RemovePage("Create")
+        app.SetFocus(list)
+    })
+    return form
+}
 
-func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) *tview.Form {
+
+func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) (*tview.Form, error) {
     // get libvirt status
     vms := virt.LookupVMs(con)
     maxCPUs, maxMem := virt.GetNodeMax(con)
@@ -97,6 +107,16 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     listPool := virt.GetPoolList(con)
 
     form := tview.NewForm()
+
+    var err error = nil
+    if maxCPUs < 0 {
+        err = errors.New("The number of CPUs must be higher than 2 to create a VM")
+        return errorForm(app, list, page), err
+    }
+    if len(listPool.Name) == 0 {
+        err = errors.New("No storage pool has been created")
+        return errorForm(app, list, page), err
+    }
 
     // domain name              item index 0
     form.AddInputField("VM name", "", 30, nil, nil)
@@ -188,7 +208,7 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
         app.SetFocus(list)
     })
 
-    return form
+    return form, nil
 }
 
 
@@ -198,7 +218,15 @@ func CreateMakeVM(app *tview.Application, con *libvirt.Connect, page *tview.Page
     bar := NewProgressBar()
     view := tview.NewTextView()
 
-    form := makeVMForm(app, con, view, list, page, bar)
+    form, err := makeVMForm(app, con, view, list, page, bar)
+
+    if err != nil {
+        view.SetText(err.Error())
+        flex.SetDirection(tview.FlexRow).
+            AddItem(view, 1, 0, false).
+            AddItem(form, 3, 0, true)
+        return pageModal(flex, 65, 6)
+    }
 
     flex.SetDirection(tview.FlexRow).
         AddItem(form, 0, 1, true).

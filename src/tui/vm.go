@@ -12,6 +12,7 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
+
 //Dedicated Modal for placing specific Primitive items inside.
 func pageModal(p tview.Primitive, width, height int) tview.Primitive {
 	return tview.NewFlex().
@@ -22,6 +23,7 @@ func pageModal(p tview.Primitive, width, height int) tview.Primitive {
 			AddItem(nil, 0, 1, false), width, 1, true).
 	    	AddItem(nil, 0, 1, false)
 }
+
 
 func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
 
@@ -126,12 +128,11 @@ func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, lis
             app.SetFocus(list)
         })
     }
-
-    //return modal(flex, 30, 20)
     return pageModal(flex, 30, 20)
 }
 
-func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
+
+func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40,40,40))
@@ -197,9 +198,6 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
 
     btCreate := tview.NewButton("Create")
 
-    //btCreate.SetBorder(true)
-    //btCreate.SetBackgroundColor(tcell.NewRGBColor(246, 102, 64))
-
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {
             if (list.GetItemCount() - 1) == list.GetCurrentItem() {
@@ -209,6 +207,7 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         }
         return event
     })
+
     btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         switch event.Key() {
         case tcell.KeyTab, tcell.KeyDown:
@@ -233,12 +232,6 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         app.SetFocus(modal)
     })
 
-    /*
-    _, _, w, _ := list.GetInnerRect()
-    flex.AddItem(list, w + 5, 1, true)
-    flex.AddItem(btCreate, 5, 1, false)
-    */
-
     flex.SetDirection(tview.FlexRow).
         AddItem(list, 0, 1, true).
         AddItem(btCreate, 5, 0, false)
@@ -246,23 +239,17 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     return flex
 }
 
-func CreateVMUI(app *tview.Application) *tview.Flex {
+
+func CreateVMUI(app *tview.Application, con *libvirt.Connect) *tview.Flex {
     flex := tview.NewFlex()
 
-    c, err := libvirt.NewConnect("qemu:///system")
-    if err != nil {
-        log.Fatalf("failed to qemu connection: %v", err)
-    }
+    page := CreatePages(app)
+    menu := CreateVMMenu(app, con, page)
 
-    Pages := CreatePages(app)
-    Menu := CreateMenu(app, c, Pages)
-
-    _, _, w, _ := Menu.GetInnerRect()
-    flex.AddItem(Menu, w + 5, 0, true)
-    flex.AddItem(Pages, 0, 1, false)
+    _, _, w, _ := menu.GetInnerRect()
+    flex.AddItem(menu, w + 5, 0, true)
+    flex.AddItem(page, 0, 1, false)
 
     return flex
 }
-
-
 

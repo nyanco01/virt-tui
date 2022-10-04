@@ -133,7 +133,7 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     form.GetFormItem(2).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
     
     // Disk pool path           item index 3
-    form.AddDropDown("Strage pool", listPool.Name, 0, nil)
+    form.AddDropDown("Storage pool", listPool.Name, 0, nil)
     // Disk Size                item index 4
     form.AddInputField(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[0] - uint64(1024*1024*1024)) / uint64(1024*1024*1024))), "", 6, nil, nil)
     form.GetFormItem(4).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)

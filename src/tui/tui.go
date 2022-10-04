@@ -1,9 +1,11 @@
 package tui
 
 import (
+    "log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	libvirt "libvirt.org/libvirt-go"
 )
 
 func still() *tview.Box {
@@ -37,13 +39,19 @@ func CreateApp() *tview.Application {
     configStyles()
     app := tview.NewApplication()
 
+    // connect libvirt
+    c, err := libvirt.NewConnect("qemu:///system")
+    if err != nil {
+        log.Fatalf("failed to qemu connection: %v", err)
+    }
+
     // Flex for layout of buttons and pages as the main UI part
     flex := tview.NewFlex()
     flex.SetDirection(tview.FlexRow)
 
     page := tview.NewPages()
-    page.AddPage("vm", CreateVMUI(app), true, true)
-    page.AddPage("volume", still(), true, true)
+    page.AddPage("vm", CreateVMUI(app, c), true, true)
+    page.AddPage("volume", CreateVolUI(app, c), true, true)
     page.AddPage("network", still(), true, true)
     page.SwitchToPage("vm")
 

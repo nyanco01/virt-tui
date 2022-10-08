@@ -10,10 +10,12 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
+
 type Volume struct {
     info        virt.Diskinfo
     attachVM    string
 }
+
 
 type Pool struct {
     *tview.Box
@@ -29,6 +31,7 @@ type Pool struct {
     // Height of one previous drawing
     oldheight       int
 }
+
 
 func NewPool(con *libvirt.Connect, n string) *Pool {
     path, capa, allo := virt.GetPoolInfo(con, n)
@@ -54,15 +57,29 @@ func NewPool(con *libvirt.Connect, n string) *Pool {
     }
 }
 
+
 func(p *Pool)Draw(screen tcell.Screen) {
     p.Box.DrawForSubclass(screen, p)
     x, y, w, h := p.GetInnerRect()
 
+    usagePool := float64(p.allocation) / float64(p.capacity)
+
+    PoolBar := ""
+    for k := 0; k < w-5; k++ {
+        PoolBar += "■"
+    }
+
     tview.Print(screen, fmt.Sprintf("Name       : %s", p.name), x+3, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("Path       : %s", p.path), x+3, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/1024/1024/1024), x+3, y+2, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/1024/1024/1024), x+3, y+3, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("available  : %.2f GB", float64(p.capacity-p.allocation)/1024/1024/1024), x+3, y+4, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/1024/1024/1024), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/1024/1024/1024), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("available  : %.2f GB", float64(p.capacity-p.allocation)/1024/1024/1024), x+50, y+2, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, PoolBar, x+3, y+4, w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
+    poolColor := setColorGradation(DISK_COLOR, int(usagePool * float64(w-5)))
+    for k := 0; k < int(usagePool * float64(w-5)); k++ {
+        tview.Print(screen, "■", x+3 + k, y+4, w, tview.AlignLeft, poolColor[k])
+    }
+    tview.Print(screen, fmt.Sprintf("used : %.2f%%", usagePool*100), x+3, y+3, w, tview.AlignLeft,tcell.ColorWhiteSmoke)
 
     for fillY := y; fillY < y+5; fillY++ {
         tview.Print(screen, "▐", x+1, fillY, w, tview.AlignLeft, tcell.ColorYellow)
@@ -78,17 +95,29 @@ func(p *Pool)Draw(screen tcell.Screen) {
     // Height required for the entire list of volumes to be drawn.
     fullHeight := 6*(l+1)
 
+    VolBar := ""
+    for k := 0; k < w-10; k++ {
+        VolBar += "■"
+    }
+
     if h - 7 >= fullHeight {
         // Drawing a Volume
         for i, vol := range p.volumes {
+            usageVol := float64(vol.info.Allocation) / float64(vol.info.Capacity)
             tview.Print(screen, fmt.Sprintf("Attached VM : %s", vol.attachVM), x+5, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             tview.Print(screen, fmt.Sprintf("Path        : %s", vol.info.Path), x+5, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Capacity    : %.2f", float64(vol.info.Capacity)/1024/1024/1024), x+5, volY+2+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Allocation  : %.2f", float64(vol.info.Allocation)/1024/1024/1024), x+5, volY+3+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Available   : %.2f", float64(vol.info.Capacity-vol.info.Allocation)/1024/1024/1024), x+5, volY+4+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Capacity    : %.2f", float64(vol.info.Capacity)/1024/1024/1024), x+55, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Allocation  : %.2f", float64(vol.info.Allocation)/1024/1024/1024), x+55, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Available   : %.2f", float64(vol.info.Capacity-vol.info.Allocation)/1024/1024/1024), x+55, volY+2+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Used : %.2f%%",usageVol*100), x+5, volY+3+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, VolBar, x+5, volY+4+(i*6), w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
+            volColor := setColorGradation(DISK_COLOR, int(usageVol * float64(w-10)))
+            for k := 0; k < int(usageVol * float64(w-10)); k++ {
+                tview.Print(screen, "■", x+5 + k, volY+4+(i*6), w, tview.AlignLeft, volColor[k])
+            }
 
-            for yy := volY+(i*6); yy <= volY+4+(i*6); yy++ {
-                tview.Print(screen, "▐", x+3, yy, w, tview.AlignLeft, tcell.ColorLightYellow)
+            for n := volY+(i*6); n <= volY+4+(i*6); n++ {
+                tview.Print(screen, "▐", x+3, n, w, tview.AlignLeft, tcell.ColorLightYellow)
             }
             if i == l {
                 tview.Print(screen, "└", x+1, volY+(i*6), w, tview.AlignLeft, tcell.ColorLightYellow)
@@ -118,9 +147,12 @@ func(p *Pool)Draw(screen tcell.Screen) {
             if vols < 0 {
                 vols = 0
             }
+
+            usageVol := float64(p.volumes[vols].info.Allocation) / float64(p.volumes[vols].info.Capacity)
             switch cnt % 6 {
             case 0:
                 tview.Print(screen, fmt.Sprintf("Attached VM : %s", p.volumes[vols].attachVM), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Capacity    : %.2f", float64(p.volumes[vols].info.Capacity)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
                 if vols == l {
                     tview.Print(screen, "└─", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
                 } else {
@@ -128,12 +160,17 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 }
             case 1:
                 tview.Print(screen, fmt.Sprintf("Path        : %s", p.volumes[vols].info.Path), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Allocation  : %.2f", float64(p.volumes[vols].info.Allocation)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 2:
-                tview.Print(screen, fmt.Sprintf("Capacity    : %.2f", float64(p.volumes[vols].info.Capacity)/1024/1024/1024), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Available   : %.2f", float64(p.volumes[vols].info.Capacity-p.volumes[vols].info.Allocation)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 3:
-                tview.Print(screen, fmt.Sprintf("Allocation  : %.2f", float64(p.volumes[vols].info.Allocation)/1024/1024/1024), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Used : %.2f%%", usageVol*100), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 4:
-                tview.Print(screen, fmt.Sprintf("Available   : %.2f", float64(p.volumes[vols].info.Capacity-p.volumes[vols].info.Allocation)/1024/1024/1024), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, VolBar, x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                volColor := setColorGradation(DISK_COLOR, int(usageVol * float64(w-10)))
+                for k := 0; k < int(usageVol * float64(w-10)); k++ {
+                    tview.Print(screen, "■", x+5 + k, i, w, tview.AlignLeft, volColor[k])
+                }
             }
 
             if cnt % 6 != 5 {
@@ -147,10 +184,8 @@ func(p *Pool)Draw(screen tcell.Screen) {
 
         p.oldheight = h
     }
-
-
-
 }
+
 
 func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
     return p.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
@@ -158,7 +193,6 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 		if !p.InRect(x, y) {
 			return false, nil
 		}
-
         switch action {
         case tview.MouseScrollUp:
             if p.lineOfset > 0 {
@@ -173,9 +207,9 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
         }
 
         return
-
     })
 }
+
 
 func NewPoolStatus(app *tview.Application, con *libvirt.Connect, name string) *tview.Flex {
     flex := tview.NewFlex()

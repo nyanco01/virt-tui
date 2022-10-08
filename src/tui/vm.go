@@ -152,21 +152,11 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
         }
     }
 
+    // Displays the page corresponding to the selected item
     list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
         if page.HasPage(mainText) {
             page.SwitchToPage(mainText)
         }
-    })
-
-    list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-        if event.Key() == tcell.KeyDown {
-            list.SetCurrentItem(list.GetCurrentItem() + 1)
-            return nil
-        } else if event.Key() == tcell.KeyUp {
-            list.SetCurrentItem(list.GetCurrentItem() - 1)
-            return nil
-        }
-        return event
     })
 
     list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
@@ -189,12 +179,6 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
         a, _ := list.GetItemText(list.GetCurrentItem())
         page.SwitchToPage(a)
     })
-
-    // Check if the number of VMs is not zero
-    if list.GetCurrentItem() != 0 {
-        main, _ := list.GetItemText(list.GetCurrentItem())
-        page.SwitchToPage(main)
-    }
 
     btCreate := tview.NewButton("Create")
 
@@ -232,6 +216,12 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
         app.SetFocus(modal)
     })
 
+    // Check if the number of VMs is not zero
+    if list.GetItemCount() != 0 {
+        main, _ := list.GetItemText(list.GetCurrentItem())
+        page.SwitchToPage(main)
+    }
+    
     flex.SetDirection(tview.FlexRow).
         AddItem(list, 0, 1, true).
         AddItem(btCreate, 5, 0, false)

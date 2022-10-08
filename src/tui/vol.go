@@ -166,7 +166,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
             case 3:
                 tview.Print(screen, fmt.Sprintf("Used : %.2f%%", usageVol*100), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 4:
-                tview.Print(screen, VolBar, x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, VolBar, x+5, i, w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
                 volColor := setColorGradation(DISK_COLOR, int(usageVol * float64(w-10)))
                 for k := 0; k < int(usageVol * float64(w-10)); k++ {
                     tview.Print(screen, "■", x+5 + k, i, w, tview.AlignLeft, volColor[k])
@@ -211,13 +211,6 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 }
 
 
-func NewPoolStatus(app *tview.Application, con *libvirt.Connect, name string) *tview.Flex {
-    flex := tview.NewFlex()
-    flex.AddItem(NewPool(con, name), 0, 1, true)
-    return flex
-}
-
-
 func CreateVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
@@ -226,17 +219,26 @@ func CreateVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pag
     poolInfo := virt.GetPoolList(con)
     for i, name := range poolInfo.Name {
         list.AddItem(name, "", rune(i)+'0', nil)
-        page.AddPage(name, NewPoolStatus(app, con, name), true, true)
+        page.AddPage(name, NewPool(con, name), true, true)
     }
 
+    // Displays the page corresponding to the selected item
     list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
         if page.HasPage(mainText) {
             page.SwitchToPage(mainText)
         }
     })
 
+    btCreate := tview.NewButton("Create")
+
+    if list.GetItemCount() != 0 {
+        main, _ := list.GetItemText(list.GetCurrentItem())
+        page.SwitchToPage(main)
+    }
+
     flex.SetDirection(tview.FlexRow).
-        AddItem(list, 0, 1,true)
+        AddItem(list, 0, 1,true).
+        AddItem(btCreate, 5, 0, false)
 
     return flex
 }

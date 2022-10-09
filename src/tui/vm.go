@@ -182,6 +182,7 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
 
     btCreate := tview.NewButton("Create")
 
+    // If the last item on the list is selected, toggle to move focus to the button
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {
             if (list.GetItemCount() - 1) == list.GetCurrentItem() {
@@ -192,6 +193,7 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
         return event
     })
 
+    // Toggling when the focus is on a button focuses the list
     btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         switch event.Key() {
         case tcell.KeyTab, tcell.KeyDown:

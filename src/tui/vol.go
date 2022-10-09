@@ -231,6 +231,32 @@ func CreateVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pag
 
     btCreate := tview.NewButton("Create")
 
+    // If the last item on the list is selected, toggle to move focus to the button
+    list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {
+            if (list.GetItemCount() - 1) == list.GetCurrentItem() {
+                app.SetFocus(btCreate)
+                return nil
+            }
+        }
+        return event
+    })
+
+    // Toggling when the focus is on a button focuses the list
+    btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        switch event.Key() {
+        case tcell.KeyTab, tcell.KeyDown:
+            list.SetCurrentItem(0)
+            app.SetFocus(list)
+            return nil
+        case tcell.KeyBacktab, tcell.KeyUp:
+            list.SetCurrentItem(list.GetItemCount() - 1)
+            app.SetFocus(list)
+            return nil
+        }
+        return event
+    })
+
     if list.GetItemCount() != 0 {
         main, _ := list.GetItemText(list.GetCurrentItem())
         page.SwitchToPage(main)

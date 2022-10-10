@@ -25,7 +25,7 @@ func pageModal(p tview.Primitive, width, height int) tview.Primitive {
 }
 
 
-func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
+func MakeOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
 
     btStart     := tview.NewButton("Start")
     btReboot    := tview.NewButton("Reboot")
@@ -132,7 +132,7 @@ func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, lis
 }
 
 
-func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
+func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40,40,40))
@@ -167,7 +167,7 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
                 vmCrnt = vm
             }
         }
-        modal := CreateOnOffModal(app, vmCrnt, page, list)
+        modal := MakeOnOffModal(app, vmCrnt, page, list)
         if page.HasPage("OnOff") {
             page.RemovePage("OnOff")
         }
@@ -209,7 +209,7 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
     })
 
     btCreate.SetSelectedFunc(func() {
-        modal := CreateMakeVM(app, con, page, list)
+        modal := MakeVMCreate(app, con, page, list)
         if page.HasPage("OnOff") {
             page.RemovePage("OnOff")
         }
@@ -232,11 +232,19 @@ func CreateVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Page
 }
 
 
-func CreateVMUI(app *tview.Application, con *libvirt.Connect) *tview.Flex {
+func MakePages(app *tview.Application) *tview.Pages {
+    page := tview.NewPages()
+    page.SetBorder(false)
+
+    return page
+}
+
+
+func MakeVMUI(app *tview.Application, con *libvirt.Connect) *tview.Flex {
     flex := tview.NewFlex()
 
-    page := CreatePages(app)
-    menu := CreateVMMenu(app, con, page)
+    page := MakePages(app)
+    menu := MakeVMMenu(app, con, page)
 
     _, _, w, _ := menu.GetInnerRect()
     flex.AddItem(menu, w + 5, 0, true)

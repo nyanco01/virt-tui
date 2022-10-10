@@ -35,7 +35,7 @@ func configStyles() {
         }
 }
 
-func CreateApp() *tview.Application {
+func MakeApp() *tview.Application {
     configStyles()
     app := tview.NewApplication()
 
@@ -50,8 +50,8 @@ func CreateApp() *tview.Application {
     flex.SetDirection(tview.FlexRow)
 
     page := tview.NewPages()
-    page.AddPage("vm", CreateVMUI(app, c), true, true)
-    page.AddPage("volume", CreateVolUI(app, c), true, true)
+    page.AddPage("vm", MakeVMUI(app, c), true, true)
+    page.AddPage("volume", MakeVolUI(app, c), true, true)
     page.AddPage("network", still(), true, true)
     page.SwitchToPage("vm")
 

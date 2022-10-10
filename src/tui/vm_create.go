@@ -99,7 +99,7 @@ func errorForm(app *tview.Application, list *tview.List, page *tview.Pages) *tvi
 }
 
 
-func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) (*tview.Form, error) {
+func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) (*tview.Form, error) {
     // get libvirt status
     vms := virt.LookupVMs(con)
     maxCPUs, maxMem := virt.GetNodeMax(con)
@@ -195,6 +195,7 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
         b, ErrInfo := virt.CheckCreateRequest(request, con)
 
         if b {
+            // Start creating a VM
             view.SetText("OK!").SetTextColor(tcell.ColorSkyblue)
             go UpdateBar(c, statusTxt, bar, view, app)
             go virt.CreateDomain(request, con, c, statusTxt, done)
@@ -212,13 +213,13 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
 }
 
 
-func CreateMakeVM(app *tview.Application, con *libvirt.Connect, page *tview.Pages, list *tview.List) tview.Primitive {
+func MakeVMCreate(app *tview.Application, con *libvirt.Connect, page *tview.Pages, list *tview.List) tview.Primitive {
     flex := tview.NewFlex()
     flex.SetBorder(true).SetTitle("Create Menu")
     bar := NewProgressBar()
     view := tview.NewTextView()
 
-    form, err := makeVMForm(app, con, view, list, page, bar)
+    form, err := MakeVMCreateForm(app, con, view, list, page, bar)
 
     if err != nil {
         view.SetText(err.Error())

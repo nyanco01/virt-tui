@@ -56,12 +56,6 @@ func NotUpVM(name string) *tview.Box {
     return box
 }
 
-func CreatePages(app *tview.Application) *tview.Pages {
-    page := tview.NewPages()
-    page.SetBorder(false)
-
-    return page
-}
 
 // -------------------------------- Info --------------------------------
 func NewVMInfo(dom *libvirt.Domain) *tview.Box {

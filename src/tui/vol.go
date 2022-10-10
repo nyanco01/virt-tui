@@ -133,7 +133,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
         p.lineOfset = 0
     } else {
         // Volume is displayed by mouse scroll.
-        if p.oldheight != 0 && p.oldheight < h {
+        if p.oldheight != 0 && p.oldheight < h && p.lineOfset != 0 {
             p.lineOfset--
         }
         p.lineOfsetMax = fullHeight - (h - 7)
@@ -211,7 +211,7 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 }
 
 
-func CreateVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
+func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40,40,40))
@@ -270,11 +270,11 @@ func CreateVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pag
 }
 
 
-func CreateVolUI(app *tview.Application, con *libvirt.Connect) *tview.Flex {
+func MakeVolUI(app *tview.Application, con *libvirt.Connect) *tview.Flex {
     flex := tview.NewFlex()
 
-    page := CreatePages(app)
-    menu := CreateVolMenu(app, con, page)
+    page := MakePages(app)
+    menu := MakeVolMenu(app, con, page)
 
     _, _, w, _ := menu.GetInnerRect()
     flex.AddItem(menu, w + 1, 0, true)

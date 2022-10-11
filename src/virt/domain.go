@@ -25,7 +25,7 @@ type VM struct {
 
 
 
-type CreateRequest struct {
+type CreateVMRequest struct {
     DomainName      string
     CPUNum          int
     MemNum          int
@@ -39,7 +39,7 @@ type CreateRequest struct {
 }
 
 
-func butItemCheck(item string) string {
+func butVMItemCheck(item string) string {
     switch item {
     case "VMName":
         return "VM name field is wrong."
@@ -233,7 +233,7 @@ func GetPoolList(c *libvirt.Connect) PoolInfos {
 }
 
 
-func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, ErrInfo string) {
+func CheckCreateVMRequest(request CreateVMRequest, con *libvirt.Connect) (OK bool, ErrInfo string) {
     vms := LookupVMs(con)
     _, maxMem := GetNodeMax(con)
     listVMName, listVNCPort := GetUsedResources(vms)
@@ -288,13 +288,13 @@ func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, E
     if OK {
         ErrInfo = ""
     } else {
-        ErrInfo = butItemCheck(out)
+        ErrInfo = butVMItemCheck(out)
     }
     return
 }
 
 
-func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
+func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
     if !operate.FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img") {
         status <- "Download image file"
         operate.DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img","./data/image", c)

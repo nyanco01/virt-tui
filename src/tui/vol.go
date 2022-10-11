@@ -257,6 +257,15 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         return event
     })
 
+    btCreate.SetSelectedFunc(func() {
+        modal := MakePoolCreate(app, con, page, list)
+        if page.HasPage("Delete"){
+            page.RemovePage("Delete")
+        }
+        page.AddPage("Create", modal, true, true)
+        app.SetFocus(modal)
+    })
+
     if list.GetItemCount() != 0 {
         main, _ := list.GetItemText(list.GetCurrentItem())
         page.SwitchToPage(main)

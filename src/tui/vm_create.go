@@ -179,7 +179,7 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
         dSize, _ := strconv.Atoi(form.GetFormItem(4).(*tview.InputField).GetText())
         VNCp, _ := strconv.Atoi(form.GetFormItem(5).(*tview.InputField).GetText())
         _, brName := form.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
-        request := virt.CreateRequest{
+        request := virt.CreateVMRequest{
             DomainName:     form.GetFormItem(0).(*tview.InputField).GetText(),
             CPUNum:         cpu,
             MemNum:         memSize,
@@ -192,7 +192,7 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
             UserPassword:   form.GetFormItem(9).(*tview.InputField).GetText(),
         }
 
-        b, ErrInfo := virt.CheckCreateRequest(request, con)
+        b, ErrInfo := virt.CheckCreateVMRequest(request, con)
 
         if b {
             // Start creating a VM
@@ -215,7 +215,7 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
 
 func MakeVMCreate(app *tview.Application, con *libvirt.Connect, page *tview.Pages, list *tview.List) tview.Primitive {
     flex := tview.NewFlex()
-    flex.SetBorder(true).SetTitle("Create Menu")
+    flex.SetBorder(true).SetTitle("Create VM Menu")
     bar := NewProgressBar()
     view := tview.NewTextView()
 

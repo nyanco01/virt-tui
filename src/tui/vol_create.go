@@ -39,6 +39,7 @@ func MakeVolumeCreateForm(app * tview.Application, con *libvirt.Connect, view *t
                 attachVM:   "non",
             }
             pool.volumes = append(pool.volumes, vol)
+            pool.onClickCreate = false
             page.RemovePage("CreateVolume")
         } else {
             view.SetText(ErrInfo).SetTextColor(tcell.ColorRed)

@@ -79,6 +79,71 @@ func GetBelongVM(con *libvirt.Connect ,name string) string {
 }
 
 
+func GetVolumeInfo(poolPath string, con *libvirt.Connect) Diskinfo {
+    vol, err := con.LookupStorageVolByPath(poolPath)
+    if err != nil {
+        log.Fatalf("failed to get volume: %v", err)
+    }
+    defer vol.Free()
+    path, _ := vol.GetPath()
+    volinfo, _ := vol.GetInfo()
+    return Diskinfo{
+        Path:       path,
+        Capacity:   volinfo.Capacity,
+        Allocation: volinfo.Allocation,
+    }
+}
+
+
+func CheckCreateVolumeRequest(name string, size int, available uint64) (OK bool, ErrInfo string) {
+    OK = true
+    ErrInfo = ""
+    if name == "" {
+        OK = false
+        ErrInfo = "Volume name is empty."
+        return
+    }
+    if size == 0 {
+        OK = false
+        ErrInfo = "Volume size is empty."
+        return
+    }
+
+    if available <= uint64(size * 1024 * 1024 * 1024) {
+        OK = false
+        ErrInfo = "The maximum size of Pool is exceeded"
+        return
+    }
+
+    return
+}
+
+func CreateVolume(name, poolPath string, size int, con *libvirt.Connect) {
+    pool, err := con.LookupStoragePoolByTargetPath(poolPath)
+    if err != nil {
+        log.Fatalf("failed to get pool: %v", err)
+    }
+    xml := CreateVolumeXML(name, poolPath, size)
+    vol, _ := pool.StorageVolCreateXML(xml, libvirt.STORAGE_VOL_CREATE_PREALLOC_METADATA)
+
+    vol.Free()
+}
+
+func CreateVolumeXML(name, poolPath string, size int) string {
+    tmpXML := operate.FileRead("./data/xml/volume/qcow2.xml")
+    var volXML libvirtxml.StorageVolume
+    volXML.Unmarshal(tmpXML)
+    volXML.Name = name
+    volXML.Key = poolPath + "/" + name
+    volXML.Target.Path = poolPath + "/" + name
+    volXML.Capacity.Value = uint64(size*1024*1024*1024)
+    volXML.Allocation.Value = 0
+
+    xmlData, _ := volXML.Marshal()
+    return xmlData
+}
+
+
 func CheckCreatePoolRequest(name, path string, con *libvirt.Connect) (OK bool, ErrInfo string) {
     OK = true
     ErrInfo = ""

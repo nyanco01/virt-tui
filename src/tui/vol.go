@@ -19,17 +19,22 @@ type Volume struct {
 
 type Pool struct {
     *tview.Box
-    name            string
-    path            string
-    capacity        uint64
-    allocation      uint64
-    volumes         []Volume
+    name                string
+    path                string
+    capacity            uint64
+    allocation          uint64
+    volumes             []Volume
 
     // Offset for mouse scrolling
-    lineOfset       int
-    lineOfsetMax    int
+    lineOfset           int
+    lineOfsetMax        int
     // Height of one previous drawing
-    oldheight       int
+    oldheight           int
+
+    // Boolean type of whether the Create button is clicked or not.
+    onClickCreate       bool
+
+    selectedCreateBt    func()
 }
 
 
@@ -54,6 +59,7 @@ func NewPool(con *libvirt.Connect, n string) *Pool {
         lineOfset:      0,
         lineOfsetMax:   0,
         oldheight:      0,
+        onClickCreate:  false,
     }
 }
 
@@ -96,10 +102,22 @@ func(p *Pool)Draw(screen tcell.Screen) {
     tview.Print(screen, "│", x+1,volY-3, w, tview.AlignLeft, tcell.ColorLightYellow)
     tview.Print(screen, "├─", x+1,volY-2, w, tview.AlignLeft, tcell.ColorLightYellow)
     tview.Print(screen, "│", x+1,volY-1, w, tview.AlignLeft, tcell.ColorLightYellow)
-    tview.Print(screen, "[+] New volume create", x+3, volY-2, w, tview.AlignLeft, tcell.ColorYellow)
 
     // Height required for the entire list of volumes to be drawn.
     fullHeight := 6*(l+1)
+
+    def := tcell.StyleDefault
+    background := def.Background(tcell.NewRGBColor(40, 40, 40))
+    var createButtonColor tcell.Color
+    if p.onClickCreate {
+        for i := 3+x; i < 24+x; i++ {
+            screen.SetContent(i, 7, ' ', nil, background)
+        }
+        createButtonColor = tcell.ColorGray
+    } else {
+        createButtonColor = tcell.ColorYellow
+    }
+    tview.Print(screen, "[+] New volume create", x+3, volY-2, w, tview.AlignLeft, createButtonColor)
 
     VolBar := ""
     for k := 0; k < w-10; k++ {
@@ -204,6 +222,11 @@ func(p *Pool)Draw(screen tcell.Screen) {
     }
 }
 
+func (p *Pool)SetCreateFunc(handler func()) *Pool {
+    p.selectedCreateBt = handler
+    return p
+}
+
 
 func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
     return p.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
@@ -211,6 +234,8 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 		if !p.InRect(x, y) {
 			return false, nil
 		}
+
+        px, py, _, _ := p.GetInnerRect()
         switch action {
         case tview.MouseScrollUp:
             if p.lineOfset > 0 {
@@ -222,9 +247,25 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
                 p.lineOfset++
                 consumed = true
             }
+        case tview.MouseLeftClick:
+            if 3+px <= x && x <= 23+px && y == 6+py {
+                p.onClickCreate = true
+                p.selectedCreateBt()
+            } else {
+                p.onClickCreate = false
+            }
+            consumed = true
         }
 
         return
+    })
+}
+
+func SetModal(app *tview.Application, con *libvirt.Connect, pool *Pool, page *tview.Pages) {
+    pool.SetCreateFunc(func() {
+        CreateVolModal := MakeVolumeCreate(app, con, pool, page)
+        page.AddPage("CreateVolume", CreateVolModal, true, true)
+        app.SetFocus(CreateVolModal)
     })
 }
 
@@ -237,7 +278,9 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
     poolInfo := virt.GetPoolList(con)
     for i, name := range poolInfo.Name {
         list.AddItem(name, "", rune(i)+'0', nil)
-        page.AddPage(name, NewPool(con, name), true, true)
+        pool := NewPool(con, name)
+        SetModal(app, con, pool, page)
+        page.AddPage(name, pool, true, true)
     }
 
     // Displays the page corresponding to the selected item

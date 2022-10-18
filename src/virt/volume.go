@@ -30,8 +30,14 @@ func GetDisksByPool(con *libvirt.Connect, name string) []Diskinfo {
     }
     infos := []Diskinfo{}
     for _, disk := range disks {
-        path, _ := disk.GetPath()
-        volInfo, _ := disk.GetInfo()
+        path, err := disk.GetPath()
+        if err != nil {
+            log.Fatalf("failed to get volume path by %s:%v",name ,err)
+        }
+        volInfo, err := disk.GetInfo()
+        if err != nil {
+            log.Fatalf("failed to get volume info by %s:%v",name ,err)
+        }
         infos = append(infos, Diskinfo{
             Path:       path,
             Capacity:   volInfo.Capacity,

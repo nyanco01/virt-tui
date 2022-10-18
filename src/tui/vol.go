@@ -277,7 +277,7 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
 
     poolInfo := virt.GetPoolList(con)
     for i, name := range poolInfo.Name {
-        list.AddItem(name, "", rune(i)+'0', nil)
+        list.AddItem(name, "", rune(i+'0'), nil)
         pool := NewPool(con, name)
         SetModal(app, con, pool, page)
         page.AddPage(name, pool, true, true)

@@ -142,7 +142,7 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     vms := virt.LookupVMs(con)
     for i, vm := range vms {
         if vm.Status {
-            list.AddItem(vm.Name, "", rune(i)+'0', nil)
+            list.AddItem(vm.Name, "", rune(i+'0'), nil)
             page.AddPage(vm.Name, NewVMStatus(app, vm.Domain, vm.Name), true, true)
             VirtualMachineStatus[vm.Name] = true
         } else {

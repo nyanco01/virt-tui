@@ -261,6 +261,7 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
     })
 }
 
+// Added a function to display Modal to Primitive that displays Pool information.
 func SetModal(app *tview.Application, con *libvirt.Connect, pool *Pool, page *tview.Pages) {
     pool.SetCreateFunc(func() {
         CreateVolModal := MakeVolumeCreate(app, con, pool, page)
@@ -288,6 +289,11 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         if page.HasPage(mainText) {
             page.SwitchToPage(mainText)
         }
+    })
+
+    list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
+        modal := MakePoolDelete(app, con, page, list, s1)
+        page.AddPage("DeletePool", modal, true, true)
     })
 
     btCreate := tview.NewButton("Create")
@@ -320,8 +326,8 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
 
     btCreate.SetSelectedFunc(func() {
         modal := MakePoolCreate(app, con, page, list)
-        if page.HasPage("Delete"){
-            page.RemovePage("Delete")
+        if page.HasPage("DeletePool"){
+            page.RemovePage("DeletePool")
         }
         page.AddPage("Create", modal, true, true)
         app.SetFocus(modal)

@@ -91,7 +91,9 @@ func MakePoolCreateForm(app *tview.Application, con *libvirt.Connect, view *tvie
 
             list.AddItem(name, "", rune(list.GetItemCount())+'0', nil)
             list.SetCurrentItem(list.GetItemCount())
-            page.AddPage(name, NewPool(con, name), true, true)
+            p := NewPool(con, name)
+            SetModal(app, con, p, page)
+            page.AddPage(name, p, true, true)
             app.SetFocus(list)
             page.RemovePage("Create")
         } else {

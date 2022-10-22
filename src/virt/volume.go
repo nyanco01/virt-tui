@@ -67,18 +67,18 @@ func GetPoolInfo(con *libvirt.Connect, name string) (path string, capacity, allo
     return
 }
 
-func GetBelongVM(con *libvirt.Connect ,name string) string {
+func GetBelongVM(con *libvirt.Connect ,volPath string) string {
     doms, err := con.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
     if err != nil {
         log.Fatalf("failed to connect domain:%v",err)
     }
     for _, dom := range doms {
         defer dom.Free()
-        _, err := dom.GetBlockInfo(name, 0)
+        _, err := dom.GetBlockInfo(volPath, 0)
         if err == nil {
             n, _ := dom.GetName()
             return n
-        }
+        } 
     }
 
     return "none"
@@ -135,6 +135,7 @@ func CreateVolume(name, poolPath string, size int, con *libvirt.Connect) {
     pool.Refresh(0)
     vol.Free()
 }
+
 
 func CreateVolumeXML(name, poolPath string, size int) string {
     tmpXML := operate.FileRead("./data/xml/volume/qcow2.xml")
@@ -229,4 +230,46 @@ func CreatePoolXML(name, path string) string {
 
     xmlData, _ := poolXML.Marshal()
     return xmlData
+}
+
+
+func CheckDeletePoolRequest(name string, con *libvirt.Connect) (OK bool, vmName string) {
+    pool, err := con.LookupStoragePoolByName(name)
+    if err != nil {
+        log.Fatalf("failed to get pool: %v", err)
+    }
+    vols, err := pool.ListAllStorageVolumes(0)
+    if err != nil {
+        log.Fatalf("failed to get volumes: %v", err)
+    }
+    for _, vol := range vols {
+        defer vol.Free()
+        name, err := vol.GetPath()
+        if err != nil {
+            log.Fatalf("failed to get volume name: %v", err)
+        }
+        vmName = GetBelongVM(con, name)
+        if vmName != "none" {
+            OK = false
+            return
+        }
+    }
+    OK  = true
+    return
+}
+
+
+func DeletePool(name string, con *libvirt.Connect) {
+    pool, err := con.LookupStoragePoolByName(name)
+    if err != nil {
+        log.Fatalf("failed to get pool: %v", err)
+    }
+    err = pool.Destroy()
+    if err != nil {
+        log.Fatalf("failed to Destroy pool by %s: %v", name, err)
+    }
+    err = pool.Undefine()
+    if err != nil {
+        log.Fatalf("failed to Undefine pool by %s: %v", name, err)
+    }
 }

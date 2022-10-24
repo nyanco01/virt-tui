@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/nyanco01/virt-tui/src/virt"
 	"github.com/rivo/tview"
 	libvirt "libvirt.org/libvirt-go"
-	//"github.com/nyanco01/virt-tui/src/virt"
+
+	"github.com/nyanco01/virt-tui/src/virt"
 )
 
 
@@ -24,7 +24,7 @@ func MakePoolDeleteForm(app *tview.Application, con *libvirt.Connect, page *tvie
             list.RemoveItem(list.GetCurrentItem())
             app.SetFocus(list)
         } else {
-            view.SetText(fmt.Sprintf("Volumes in the Pool are attached to the following VMs: [red]%s", vmName))
+            view.SetText(fmt.Sprintf("Volumes in the Pool are attached to \nthe following VMs: [red]%s", vmName))
         }
     })
     form.AddButton("Cancel", func() {
@@ -50,5 +50,5 @@ func MakePoolDelete(app *tview.Application, con *libvirt.Connect, page *tview.Pa
         AddItem(view, 2, 0, false).
         AddItem(form, 3, 0, true)
 
-    return pageModal(flex, 60, 7)
+    return pageModal(flex, 40, 7)
 }

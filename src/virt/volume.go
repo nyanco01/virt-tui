@@ -47,6 +47,7 @@ func GetDisksByPool(con *libvirt.Connect, name string) []Diskinfo {
     return infos
 }
 
+
 func GetPoolInfo(con *libvirt.Connect, name string) (path string, capacity, allocation uint64) {
     pool, err := con.LookupStoragePoolByName(name)
     defer pool.Free()
@@ -66,6 +67,7 @@ func GetPoolInfo(con *libvirt.Connect, name string) (path string, capacity, allo
 
     return
 }
+
 
 func GetBelongVM(con *libvirt.Connect ,volPath string) string {
     doms, err := con.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
@@ -124,6 +126,7 @@ func CheckCreateVolumeRequest(name string, size int, available uint64) (OK bool,
     return
 }
 
+
 func CreateVolume(name, poolPath string, size int, con *libvirt.Connect) {
     pool, err := con.LookupStoragePoolByTargetPath(poolPath)
     defer pool.Free()
@@ -180,7 +183,6 @@ func CheckCreatePoolRequest(name, path string, con *libvirt.Connect) (OK bool, E
         listPath = append(listPath, xml.Target.Path)
         pool.Free()
     }
-
     for _, n := range listName {
         if n == name {
             OK = false
@@ -188,7 +190,6 @@ func CheckCreatePoolRequest(name, path string, con *libvirt.Connect) (OK bool, E
             return
         }
     }
-
     for _, p := range listPath {
         if p == path {
             OK = false
@@ -196,7 +197,6 @@ func CheckCreatePoolRequest(name, path string, con *libvirt.Connect) (OK bool, E
             return
         }
     }
-
     if !operate.DirCheck(path) {
         OK = false
         ErrInfo = "Pool path does not exist"
@@ -271,5 +271,17 @@ func DeletePool(name string, con *libvirt.Connect) {
     err = pool.Undefine()
     if err != nil {
         log.Fatalf("failed to Undefine pool by %s: %v", name, err)
+    }
+}
+
+
+func DeleteVolume(volPath string, con *libvirt.Connect) {
+    vol, err := con.LookupStorageVolByPath(volPath)
+    if err != nil {
+        log.Fatalf("failed to get volume: %v", err)
+    }
+    err = vol.Delete(libvirt.STORAGE_VOL_DELETE_NORMAL)
+    if err != nil {
+        log.Fatalf("failed to delete volume: %v", err)
     }
 }

@@ -38,7 +38,7 @@ type Pool struct {
     testClick           int
 
     selectedCreateFunc  func()
-    selectedDeleteFunc  func(int)
+    selectedDeleteFunc  func(volIndex int)
 }
 
 
@@ -320,6 +320,11 @@ func SetModal(app *tview.Application, con *libvirt.Connect, pool *Pool, page *tv
         CreateVolModal := MakeVolumeCreate(app, con, pool, page)
         page.AddPage("CreateVolume", CreateVolModal, true, true)
         app.SetFocus(CreateVolModal)
+    })
+    pool.SetDeleteVolFunc(func(volIndex int) {
+        DeleteVolModal := MakeVolDelete(app, con, page, pool, volIndex)
+        page.AddPage("DeleteVolume", DeleteVolModal, true, true)
+        app.SetFocus(DeleteVolModal)
     })
 }
 

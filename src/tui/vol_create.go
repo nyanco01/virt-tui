@@ -36,7 +36,7 @@ func MakeVolumeCreateForm(app * tview.Application, con *libvirt.Connect, view *t
 
             vol := Volume {
                 info:       virt.GetVolumeInfo(pool.path + "/" + name, con),
-                attachVM:   "non",
+                attachVM:   "none",
             }
             pool.volumes = append(pool.volumes, vol)
             pool.onClickCreate = false

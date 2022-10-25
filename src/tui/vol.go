@@ -37,7 +37,8 @@ type Pool struct {
 
     testClick           int
 
-    selectedCreateBt    func()
+    selectedCreateFunc  func()
+    selectedDeleteFunc  func(int)
 }
 
 
@@ -53,17 +54,19 @@ func NewPool(con *libvirt.Connect, n string) *Pool {
         })
     }
     return &Pool{
-        Box:            tview.NewBox(),
-        name:           n,
-        path:           path,
-        capacity:       capa,
-        allocation:     allo,
-        volumes:        vols,
-        lineOfset:      0,
-        lineOfsetMax:   0,
-        oldheight:      0,
-        onClickCreate:  false,
-        clickVolIndex:  -1,
+        Box:                tview.NewBox(),
+        name:               n,
+        path:               path,
+        capacity:           capa,
+        allocation:         allo,
+        volumes:            vols,
+        lineOfset:          0,
+        lineOfsetMax:       0,
+        oldheight:          0,
+        onClickCreate:      false,
+        clickVolIndex:      -1,
+        selectedCreateFunc: nil,
+        selectedDeleteFunc: nil,
     }
 }
 
@@ -83,8 +86,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
     tview.Print(screen, fmt.Sprintf("Path       : %s", p.path), x+3, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/1024/1024/1024), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/1024/1024/1024), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("offset  : %1d",p.lineOfset), x, y+2, w, tview.AlignRight, tcell.ColorAntiqueWhite)
-    tview.Print(screen, fmt.Sprintf("test    : %1d",p.testClick), x, y+3, w, tview.AlignRight, tcell.ColorAntiqueWhite)
+
     var avaPool float64
     if p.capacity <= p.allocation {
         avaPool = 0
@@ -135,6 +137,19 @@ func(p *Pool)Draw(screen tcell.Screen) {
     if h - 7 >= fullHeight {
         // Drawing a Volume
         for i, vol := range p.volumes {
+            for n := volY+(i*6); n <= volY+4+(i*6); n++ {
+                var volColor tcell.Color
+                if i == p.clickVolIndex {
+                    volColor = tcell.ColorOrange
+                    for k := x+3; k <= x+w-7; k++ {
+                        screen.SetContent(k, n, ' ', nil, background)
+                    }
+                } else {
+                    volColor = tcell.ColorLightYellow
+                }
+                tview.Print(screen, "▐", x+3, n, w, tview.AlignLeft, volColor)
+            }
+
             usageVol := float64(vol.info.Allocation) / float64(vol.info.Capacity)
             tview.Print(screen, fmt.Sprintf("Attached VM : %s", vol.attachVM), x+5, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             tview.Print(screen, fmt.Sprintf("Path        : %s", vol.info.Path), x+5, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
@@ -153,15 +168,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 tview.Print(screen, "■", x+5 + k, volY+4+(i*6), w, tview.AlignLeft, volColor[k])
             }
 
-            for n := volY+(i*6); n <= volY+4+(i*6); n++ {
-                var volColor tcell.Color
-                if i == p.clickVolIndex {
-                    volColor = tcell.ColorOrange
-                } else {
-                    volColor = tcell.ColorLightYellow
-                }
-                tview.Print(screen, "▐", x+3, n, w, tview.AlignLeft, volColor)
-            }
+
             if i == l {
                 tview.Print(screen, "└", x+1, volY+(i*6), w, tview.AlignLeft, tcell.ColorLightYellow)
             } else {
@@ -187,6 +194,20 @@ func(p *Pool)Draw(screen tcell.Screen) {
             // If the terminal is vigorously resized vertically, the calculation may not be completed in time.
             if vols < 0 {
                 vols = 0
+            }
+
+            if cnt % 6 != 5 {
+                var volColor tcell.Color
+                // Change the display depending on whether it is selected or not
+                if vols == p.clickVolIndex {
+                    volColor = tcell.ColorOrange
+                    for k := x+3; k <= x+w-7; k++ {
+                        screen.SetContent(k, i, ' ', nil, background)
+                    }
+                } else {
+                    volColor = tcell.ColorLightYellow
+                }
+                tview.Print(screen, "▐", x+3, i, w, tview.AlignLeft, volColor)
             }
 
             usageVol := float64(p.volumes[vols].info.Allocation) / float64(p.volumes[vols].info.Capacity)
@@ -219,15 +240,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 }
             }
 
-            if cnt % 6 != 5 {
-                var volColor tcell.Color
-                if vols == p.clickVolIndex {
-                    volColor = tcell.ColorOrange
-                } else {
-                    volColor = tcell.ColorLightYellow
-                }
-                tview.Print(screen, "▐", x+3, i, w, tview.AlignLeft, volColor)
-            }
+
             if vols != l && cnt % 6 != 0 {
                 tview.Print(screen, "│", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
             }
@@ -238,8 +251,15 @@ func(p *Pool)Draw(screen tcell.Screen) {
     }
 }
 
-func (p *Pool)SetCreateFunc(handler func()) *Pool {
-    p.selectedCreateBt = handler
+
+func (p *Pool)SetCreateVolFunc(handler func()) *Pool {
+    p.selectedCreateFunc = handler
+    return p
+}
+
+
+func (p *Pool)SetDeleteVolFunc(handler func(volIndex int)) *Pool {
+    p.selectedDeleteFunc = handler
     return p
 }
 
@@ -260,32 +280,31 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
         }
 
         px, py, _, _ := p.GetInnerRect()
+        p.clickVolIndex = -1
         switch action {
         case tview.MouseScrollUp:
-            //p.ClickDelHight = 0
             if p.lineOfset > 0 {
-                p.clickVolIndex = -1
                 p.lineOfset--
                 consumed = true
             }
         case tview.MouseScrollDown:
-            //p.ClickDelHight = 0
             if p.lineOfset < p.lineOfsetMax {
-                p.clickVolIndex = -1
                 p.lineOfset++
                 consumed = true
             }
         case tview.MouseLeftClick:
             if 3+px <= x && x <= 23+px && y == 6+py {
                 p.onClickCreate = true
-                p.selectedCreateBt()
-                p.clickVolIndex = -1
+                if p.selectedCreateFunc != nil {
+                    p.selectedCreateFunc()
+                }
             }else {
                 p.onClickCreate = false
                 if 3+px <= x && 8+py <= y && !volSpacers {
                     p.clickVolIndex = (y - 8 + p.lineOfset) / 6
-                } else {
-                    p.clickVolIndex = -1
+                    if p.selectedDeleteFunc != nil {
+                        p.selectedDeleteFunc(p.clickVolIndex)
+                    }
                 }
             }
             consumed = true
@@ -297,7 +316,7 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 
 // Added a function to display Modal to Primitive that displays Pool information.
 func SetModal(app *tview.Application, con *libvirt.Connect, pool *Pool, page *tview.Pages) {
-    pool.SetCreateFunc(func() {
+    pool.SetCreateVolFunc(func() {
         CreateVolModal := MakeVolumeCreate(app, con, pool, page)
         page.AddPage("CreateVolume", CreateVolModal, true, true)
         app.SetFocus(CreateVolModal)

@@ -33,6 +33,9 @@ type Pool struct {
 
     // Boolean type of whether the Create button is clicked or not.
     onClickCreate       bool
+    clickVolIndex       int
+
+    testClick           int
 
     selectedCreateBt    func()
 }
@@ -60,6 +63,7 @@ func NewPool(con *libvirt.Connect, n string) *Pool {
         lineOfsetMax:   0,
         oldheight:      0,
         onClickCreate:  false,
+        clickVolIndex:  -1,
     }
 }
 
@@ -79,6 +83,8 @@ func(p *Pool)Draw(screen tcell.Screen) {
     tview.Print(screen, fmt.Sprintf("Path       : %s", p.path), x+3, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/1024/1024/1024), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/1024/1024/1024), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("offset  : %1d",p.lineOfset), x, y+2, w, tview.AlignRight, tcell.ColorAntiqueWhite)
+    tview.Print(screen, fmt.Sprintf("test    : %1d",p.testClick), x, y+3, w, tview.AlignRight, tcell.ColorAntiqueWhite)
     var avaPool float64
     if p.capacity <= p.allocation {
         avaPool = 0
@@ -148,7 +154,13 @@ func(p *Pool)Draw(screen tcell.Screen) {
             }
 
             for n := volY+(i*6); n <= volY+4+(i*6); n++ {
-                tview.Print(screen, "▐", x+3, n, w, tview.AlignLeft, tcell.ColorLightYellow)
+                var volColor tcell.Color
+                if i == p.clickVolIndex {
+                    volColor = tcell.ColorOrange
+                } else {
+                    volColor = tcell.ColorLightYellow
+                }
+                tview.Print(screen, "▐", x+3, n, w, tview.AlignLeft, volColor)
             }
             if i == l {
                 tview.Print(screen, "└", x+1, volY+(i*6), w, tview.AlignLeft, tcell.ColorLightYellow)
@@ -171,9 +183,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
         cnt := p.lineOfset
         var vols int = 0
         for i := volY; i <= y+h; i++ {
-            if i != volY {
-                vols = (i + p.lineOfset - volY)/6
-            }
+            vols = (i + p.lineOfset - volY)/6
             // If the terminal is vigorously resized vertically, the calculation may not be completed in time.
             if vols < 0 {
                 vols = 0
@@ -210,7 +220,13 @@ func(p *Pool)Draw(screen tcell.Screen) {
             }
 
             if cnt % 6 != 5 {
-                tview.Print(screen, "▐", x+3, i, w, tview.AlignLeft, tcell.ColorLightYellow)
+                var volColor tcell.Color
+                if vols == p.clickVolIndex {
+                    volColor = tcell.ColorOrange
+                } else {
+                    volColor = tcell.ColorLightYellow
+                }
+                tview.Print(screen, "▐", x+3, i, w, tview.AlignLeft, volColor)
             }
             if vols != l && cnt % 6 != 0 {
                 tview.Print(screen, "│", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
@@ -235,15 +251,27 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 			return false, nil
 		}
 
+        p.testClick = y
+        var volSpacers bool
+        if (y - 8 + p.lineOfset) % 6 == 0 {
+            volSpacers = true
+        } else {
+            volSpacers = false
+        }
+
         px, py, _, _ := p.GetInnerRect()
         switch action {
         case tview.MouseScrollUp:
+            //p.ClickDelHight = 0
             if p.lineOfset > 0 {
+                p.clickVolIndex = -1
                 p.lineOfset--
                 consumed = true
             }
         case tview.MouseScrollDown:
+            //p.ClickDelHight = 0
             if p.lineOfset < p.lineOfsetMax {
+                p.clickVolIndex = -1
                 p.lineOfset++
                 consumed = true
             }
@@ -251,8 +279,14 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
             if 3+px <= x && x <= 23+px && y == 6+py {
                 p.onClickCreate = true
                 p.selectedCreateBt()
-            } else {
+                p.clickVolIndex = -1
+            }else {
                 p.onClickCreate = false
+                if 3+px <= x && 8+py <= y && !volSpacers {
+                    p.clickVolIndex = (y - 8 + p.lineOfset) / 6
+                } else {
+                    p.clickVolIndex = -1
+                }
             }
             consumed = true
         }

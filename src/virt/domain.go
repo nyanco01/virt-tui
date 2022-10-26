@@ -10,6 +10,7 @@ import (
 	libvirtxml "libvirt.org/libvirt-go-xml"
 )
 
+
 type PoolInfos struct {
     Name        []string
     Avalable    []uint64
@@ -22,25 +23,23 @@ type VM struct {
     Status          bool
 }
 
-type Diskinfo struct {
-    Name            string
-    Capacity        uint64
-    Allocation      uint64
-}
 
-type CreateRequest struct {
+
+type CreateVMRequest struct {
     DomainName      string
     CPUNum          int
     MemNum          int
     DiskPath        string
     DiskSize        int
     VNCPort         int
+    NICBridgeIF     string
     HostName        string
     UserName        string
     UserPassword    string
 }
 
-func butItemCheck(item string) string {
+
+func butVMItemCheck(item string) string {
     switch item {
     case "VMName":
         return "VM name field is wrong."
@@ -60,6 +59,7 @@ func butItemCheck(item string) string {
     return ""
 }
 
+
 func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
     cpuGuest, err := d.GetVcpus()
     if err != nil {
@@ -75,6 +75,7 @@ func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
 
     return all, cnt
 }
+
 
 func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
     domMemStatus, err := d.MemoryStats(13, 0)
@@ -97,6 +98,7 @@ func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
 
     return
 }
+
 
 func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
     xml, err := d.GetXMLDesc(0)
@@ -123,6 +125,7 @@ func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
     return ifState.TxBytes, ifState.RxBytes
 }
 
+
 func GetDisks(d *libvirt.Domain) []Diskinfo {
     xml, err := d.GetXMLDesc(0)
     if err != nil {
@@ -144,7 +147,7 @@ func GetDisks(d *libvirt.Domain) []Diskinfo {
             log.Fatalf("failed to get disk status: %v", err)
         }
         infos = append(infos, Diskinfo{
-            Name:           name,
+            Path:           name,
             Allocation:     info.Allocation,
             Capacity:       info.Capacity,
         })
@@ -152,6 +155,7 @@ func GetDisks(d *libvirt.Domain) []Diskinfo {
 
     return infos
 }
+
 
 func LookupVMs(c *libvirt.Connect) []VM {
     vms := []VM{}
@@ -181,6 +185,7 @@ func LookupVMs(c *libvirt.Connect) []VM {
     return vms
 }
 
+
 func GetNodeMax(c *libvirt.Connect) (maxCPU int, maxMem uint64) {
     nodeInfo, err := c.GetNodeInfo()
     if err != nil {
@@ -191,6 +196,7 @@ func GetNodeMax(c *libvirt.Connect) (maxCPU int, maxMem uint64) {
     return
 }
 
+// Make a list of the VNC ports you are using from the list of VMs
 func GetUsedResources(vms []VM) (name []string, vnc []int) {
     var domainXml libvirtxml.Domain
     for _, vm := range vms {
@@ -204,6 +210,7 @@ func GetUsedResources(vms []VM) (name []string, vnc []int) {
     sort.Slice(vnc, func(i, j int) bool { return vnc[i] < vnc[j] })
     return
 }
+
 
 func GetPoolList(c *libvirt.Connect) PoolInfos {
     pools, err := c.ListAllStoragePools(0)
@@ -225,7 +232,8 @@ func GetPoolList(c *libvirt.Connect) PoolInfos {
     return Infos
 }
 
-func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, ErrInfo string) {
+
+func CheckCreateVMRequest(request CreateVMRequest, con *libvirt.Connect) (OK bool, ErrInfo string) {
     vms := LookupVMs(con)
     _, maxMem := GetNodeMax(con)
     listVMName, listVNCPort := GetUsedResources(vms)
@@ -280,12 +288,13 @@ func CheckCreateRequest(request CreateRequest, con *libvirt.Connect) (OK bool, E
     if OK {
         ErrInfo = ""
     } else {
-        ErrInfo = butItemCheck(out)
+        ErrInfo = butVMItemCheck(out)
     }
     return
 }
 
-func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
+
+func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
     if !operate.FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img") {
         status <- "Download image file"
         operate.DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img","./data/image", c)
@@ -305,17 +314,20 @@ func CreateDomain(request CreateRequest, con *libvirt.Connect, c chan float64, s
     c <- 90.0
     // create domain
     //dom, err := con.DomainDefineXML(xml)
-    _, err :=con.DomainDefineXML(xml)
+    dom, err :=con.DomainDefineXML(xml)
     if err!=nil {
         log.Fatalf("failed to create domain: %v", err)
     }
     c <- 95.0
-    //dom.Free()
-    status <- "Complete !"
+    status <- "Attach network interface"
+    AttachBridgeNIC(dom, request.NICBridgeIF)
     c <- 100.0
+    status <- "Complete !"
     time.Sleep(time.Second)
+    dom.Free()
     done <- 1
 }
+
 
 func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
     tmpXML := operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
@@ -340,6 +352,7 @@ func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
     return xmlData
 }
 
+
 func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
     // connect pool
     pool, err := con.LookupStoragePoolByTargetPath(path)
@@ -362,6 +375,7 @@ func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
     vol.Resize(size, 2)
 }
 
+
 func CreateVolXML(path, name string, resize int) string {
     tmpXML := operate.FileRead("./data/xml/volume/qcow2.xml")
     var volXML libvirtxml.StorageVolume
@@ -374,4 +388,20 @@ func CreateVolXML(path, name string, resize int) string {
     xmlData, _ := volXML.Marshal()
     //operate.FileWrite("./tmp/xml/volume", name, xmlData)
     return xmlData
+}
+
+
+func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
+    var nicXML libvirtxml.DomainInterface
+    nicXML.Unmarshal(operate.FileRead("./data/xml/network/bridge.xml"))
+    nicXML.Source.Bridge.Bridge = ifName
+    nicXML.MAC.Address = operate.NewBridgeMAC(ifName)
+    xml, err := nicXML.Marshal()
+    if err != nil {
+        log.Fatalf("failed to marshal xml: %v", err)
+    }
+    err = d.AttachDeviceFlags(xml, 2)
+    if err != nil {
+        log.Fatalf("failed to attach network interface: %v\n", err)
+    }
 }

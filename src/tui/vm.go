@@ -12,6 +12,7 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
+
 //Dedicated Modal for placing specific Primitive items inside.
 func pageModal(p tview.Primitive, width, height int) tview.Primitive {
 	return tview.NewFlex().
@@ -23,7 +24,8 @@ func pageModal(p tview.Primitive, width, height int) tview.Primitive {
 	    	AddItem(nil, 0, 1, false)
 }
 
-func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
+
+func MakeOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
 
     btStart     := tview.NewButton("Start")
     btReboot    := tview.NewButton("Reboot")
@@ -126,12 +128,11 @@ func CreateOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, lis
             app.SetFocus(list)
         })
     }
-
-    //return modal(flex, 30, 20)
     return pageModal(flex, 30, 20)
 }
 
-func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
+
+func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40,40,40))
@@ -141,7 +142,7 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     vms := virt.LookupVMs(con)
     for i, vm := range vms {
         if vm.Status {
-            list.AddItem(vm.Name, "", rune(i)+'0', nil)
+            list.AddItem(vm.Name, "", rune(i+'0'), nil)
             page.AddPage(vm.Name, NewVMStatus(app, vm.Domain, vm.Name), true, true)
             VirtualMachineStatus[vm.Name] = true
         } else {
@@ -151,21 +152,11 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         }
     }
 
+    // Displays the page corresponding to the selected item
     list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
         if page.HasPage(mainText) {
             page.SwitchToPage(mainText)
         }
-    })
-
-    list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-        if event.Key() == tcell.KeyDown {
-            list.SetCurrentItem(list.GetCurrentItem() + 1)
-            return nil
-        } else if event.Key() == tcell.KeyUp {
-            list.SetCurrentItem(list.GetCurrentItem() - 1)
-            return nil
-        }
-        return event
     })
 
     list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
@@ -176,7 +167,7 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
                 vmCrnt = vm
             }
         }
-        modal := CreateOnOffModal(app, vmCrnt, page, list)
+        modal := MakeOnOffModal(app, vmCrnt, page, list)
         if page.HasPage("OnOff") {
             page.RemovePage("OnOff")
         }
@@ -189,14 +180,9 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         page.SwitchToPage(a)
     })
 
-    main, _ := list.GetItemText(list.GetCurrentItem())
-    page.SwitchToPage(main)
-
     btCreate := tview.NewButton("Create")
 
-    //btCreate.SetBorder(true)
-    //btCreate.SetBackgroundColor(tcell.NewRGBColor(246, 102, 64))
-
+    // If the last item on the list is selected, toggle to move focus to the button
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {
             if (list.GetItemCount() - 1) == list.GetCurrentItem() {
@@ -206,6 +192,8 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         }
         return event
     })
+
+    // Toggling when the focus is on a button focuses the list
     btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         switch event.Key() {
         case tcell.KeyTab, tcell.KeyDown:
@@ -221,7 +209,7 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     })
 
     btCreate.SetSelectedFunc(func() {
-        modal := CreateMakeVM(app, con, page, list)
+        modal := MakeVMCreate(app, con, page, list)
         if page.HasPage("OnOff") {
             page.RemovePage("OnOff")
         }
@@ -230,12 +218,12 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
         app.SetFocus(modal)
     })
 
-    /*
-    _, _, w, _ := list.GetInnerRect()
-    flex.AddItem(list, w + 5, 1, true)
-    flex.AddItem(btCreate, 5, 1, false)
-    */
-
+    // Check if the number of VMs is not zero
+    if list.GetItemCount() != 0 {
+        main, _ := list.GetItemText(list.GetCurrentItem())
+        page.SwitchToPage(main)
+    }
+    
     flex.SetDirection(tview.FlexRow).
         AddItem(list, 0, 1, true).
         AddItem(btCreate, 5, 0, false)
@@ -243,23 +231,25 @@ func CreateMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     return flex
 }
 
-func CreateVMUI(app *tview.Application) *tview.Flex {
-    flex := tview.NewFlex()
 
-    c, err := libvirt.NewConnect("qemu:///system")
-    if err != nil {
-        log.Fatalf("failed to qemu connection: %v", err)
-    }
+func MakePages(app *tview.Application) *tview.Pages {
+    page := tview.NewPages()
+    page.SetBorder(false)
 
-    Pages := CreatePages(app)
-    Menu := CreateMenu(app, c, Pages)
-
-    _, _, w, _ := Menu.GetInnerRect()
-    flex.AddItem(Menu, w + 5, 0, true)
-    flex.AddItem(Pages, 0, 1, false)
-
-    return flex
+    return page
 }
 
 
+func MakeVMUI(app *tview.Application, con *libvirt.Connect) *tview.Flex {
+    flex := tview.NewFlex()
+
+    page := MakePages(app)
+    menu := MakeVMMenu(app, con, page)
+
+    _, _, w, _ := menu.GetInnerRect()
+    flex.AddItem(menu, w + 5, 0, true)
+    flex.AddItem(page, 0, 1, false)
+
+    return flex
+}
 

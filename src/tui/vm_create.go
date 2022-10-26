@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -9,13 +10,16 @@ import (
 	"github.com/rivo/tview"
 	libvirt "libvirt.org/libvirt-go"
 
+	"github.com/nyanco01/virt-tui/src/operate"
 	"github.com/nyanco01/virt-tui/src/virt"
 )
+
 
 type ProgressBar struct {
     *tview.Box
     rate        float64
 }
+
 
 func NewProgressBar() *ProgressBar {
     return &ProgressBar {
@@ -23,6 +27,7 @@ func NewProgressBar() *ProgressBar {
         rate:   0.0,
     }
 }
+
 
 func (p *ProgressBar)Draw(screen tcell.Screen) {
     p.Box.DrawForSubclass(screen, p)
@@ -61,9 +66,11 @@ func (p *ProgressBar)Draw(screen tcell.Screen) {
     tview.Print(screen, bar, x, y, w, tview.AlignLeft, tcell.ColorSkyblue)
 }
 
+
 func (p *ProgressBar)Update(newrate float64) {
     p.rate = newrate
 }
+
 
 func UpdateBar(c chan float64, status chan string, p *ProgressBar, view *tview.TextView, app *tview.Application) {
     for {
@@ -80,16 +87,19 @@ func UpdateBar(c chan float64, status chan string, p *ProgressBar, view *tview.T
             time.Sleep(500 * time.Millisecond)
         }
     }
-    /*
-    for i := range c {
-        app.QueueUpdateDraw(func() {
-            p.Update(i)
-        })
-    }
-    */
 }
 
-func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) *tview.Form {
+func errorForm(app *tview.Application, list *tview.List, page *tview.Pages) *tview.Form {
+    form := tview.NewForm()
+    form.AddButton("Cancel", func() {
+        page.RemovePage("Create")
+        app.SetFocus(list)
+    })
+    return form
+}
+
+
+func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.TextView, list *tview.List, page *tview.Pages, bar *ProgressBar) (*tview.Form, error) {
     // get libvirt status
     vms := virt.LookupVMs(con)
     maxCPUs, maxMem := virt.GetNodeMax(con)
@@ -97,6 +107,16 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     listPool := virt.GetPoolList(con)
 
     form := tview.NewForm()
+
+    var err error = nil
+    if maxCPUs < 0 {
+        err = errors.New("The number of CPUs must be higher than 2 to create a VM")
+        return errorForm(app, list, page), err
+    }
+    if len(listPool.Name) == 0 {
+        err = errors.New("No storage pool has been created")
+        return errorForm(app, list, page), err
+    }
 
     // domain name              item index 0
     form.AddInputField("VM name", "", 30, nil, nil)
@@ -113,7 +133,7 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
     form.GetFormItem(2).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
     
     // Disk pool path           item index 3
-    form.AddDropDown("Strage pool", listPool.Name, 0, nil)
+    form.AddDropDown("Storage pool", listPool.Name, 0, nil)
     // Disk Size                item index 4
     form.AddInputField(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[0] - uint64(1024*1024*1024)) / uint64(1024*1024*1024))), "", 6, nil, nil)
     form.GetFormItem(4).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
@@ -136,12 +156,15 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
         }
     })
 
+    // Network Interface        item index 6
+    form.AddDropDown("Network bridge interface", operate.ListBridgeIF(), 0, nil)
+
     //cloud-init
-    // Host name                item index 6
+    // Host name                item index 7
     form.AddInputField("host name", "", 30, nil, nil)
-    // guest vm user name       item index 7
+    // guest vm user name       item index 8
     form.AddInputField("user name", "", 30, nil, nil)
-    // guest vm user password   item index 8
+    // guest vm user password   item index 9
     form.AddPasswordField("user password", "", 30, '*', nil)
 
     c := make(chan float64)
@@ -155,21 +178,24 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
         poolIndex, _ := form.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
         dSize, _ := strconv.Atoi(form.GetFormItem(4).(*tview.InputField).GetText())
         VNCp, _ := strconv.Atoi(form.GetFormItem(5).(*tview.InputField).GetText())
-        request := virt.CreateRequest{
+        _, brName := form.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
+        request := virt.CreateVMRequest{
             DomainName:     form.GetFormItem(0).(*tview.InputField).GetText(),
             CPUNum:         cpu,
             MemNum:         memSize,
             DiskPath:       listPool.Path[poolIndex],
             DiskSize:       dSize,
             VNCPort:        VNCp,
-            HostName:       form.GetFormItem(6).(*tview.InputField).GetText(),
-            UserName:       form.GetFormItem(7).(*tview.InputField).GetText(),
-            UserPassword:   form.GetFormItem(8).(*tview.InputField).GetText(),
+            NICBridgeIF:    brName,
+            HostName:       form.GetFormItem(7).(*tview.InputField).GetText(),
+            UserName:       form.GetFormItem(8).(*tview.InputField).GetText(),
+            UserPassword:   form.GetFormItem(9).(*tview.InputField).GetText(),
         }
 
-        b, ErrInfo := virt.CheckCreateRequest(request, con)
+        b, ErrInfo := virt.CheckCreateVMRequest(request, con)
 
         if b {
+            // Start creating a VM
             view.SetText("OK!").SetTextColor(tcell.ColorSkyblue)
             go UpdateBar(c, statusTxt, bar, view, app)
             go virt.CreateDomain(request, con, c, statusTxt, done)
@@ -179,27 +205,38 @@ func makeVMForm(app *tview.Application, con *libvirt.Connect, view *tview.TextVi
         }
     })
     form.AddButton("Cancel", func() {
-        app.Stop()
+        page.RemovePage("Create")
+        app.SetFocus(list)
     })
 
-    return form
+    return form, nil
 }
 
-func CreateMakeVM(app *tview.Application, con *libvirt.Connect, page *tview.Pages, list *tview.List) tview.Primitive {
+
+func MakeVMCreate(app *tview.Application, con *libvirt.Connect, page *tview.Pages, list *tview.List) tview.Primitive {
     flex := tview.NewFlex()
-    flex.SetBorder(true).SetTitle("Create Menu")
+    flex.SetBorder(true).SetTitle("Create VM Menu")
     bar := NewProgressBar()
     view := tview.NewTextView()
 
-    form := makeVMForm(app, con, view, list, page, bar)
+    form, err := MakeVMCreateForm(app, con, view, list, page, bar)
+
+    if err != nil {
+        view.SetText(err.Error())
+        flex.SetDirection(tview.FlexRow).
+            AddItem(view, 1, 0, false).
+            AddItem(form, 3, 0, true)
+        return pageModal(flex, 65, 6)
+    }
 
     flex.SetDirection(tview.FlexRow).
         AddItem(form, 0, 1, true).
         AddItem(bar, 1, 0, false).
         AddItem(view, 1, 0, false)
 
-    return pageModal(flex, 65, 25)
+    return pageModal(flex, 65, 27)
 }
+
 
 func doneCreate(name string, con *libvirt.Connect, list *tview.List, page *tview.Pages, app *tview.Application, done chan int) {
     <-done

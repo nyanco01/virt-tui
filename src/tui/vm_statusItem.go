@@ -56,12 +56,6 @@ func NotUpVM(name string) *tview.Box {
     return box
 }
 
-func CreatePages(app *tview.Application) *tview.Pages {
-    page := tview.NewPages()
-    page.SetBorder(false)
-
-    return page
-}
 
 // -------------------------------- Info --------------------------------
 func NewVMInfo(dom *libvirt.Domain) *tview.Box {
@@ -329,7 +323,7 @@ func (d *Disk)Draw(screen tcell.Screen) {
                 Bar += "■"
             }
 
-            tview.Print(screen, fmt.Sprintf("File : %s",info.Name), x, y + (i*4) + 1, w, tview.AlignLeft, tcell.ColorOrange)
+            tview.Print(screen, fmt.Sprintf("File : %s",info.Path), x, y + (i*4) + 1, w, tview.AlignLeft, tcell.ColorOrange)
             tview.Print(screen, fmt.Sprintf("Volume size : %.2f", float64(info.Capacity / (1024 * 1024 * 1024))), x, y + (i*4) + 1, w, tview.AlignRight, tcell.ColorGhostWhite)
             tview.Print(screen, fmt.Sprintf("Used        : %.2f", float64(info.Allocation / (1024 * 1024 * 1024))), x, y + (i*4) + 2, w, tview.AlignRight, tcell.ColorOrange)
             // draw Bar

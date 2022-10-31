@@ -52,7 +52,7 @@ func MakeApp() *tview.Application {
     page := tview.NewPages()
     page.AddPage("vm", MakeVMUI(app, c), true, true)
     page.AddPage("volume", MakeVolUI(app, c), true, true)
-    page.AddPage("network", still(), true, true)
+    page.AddPage("network", MakeNetUI(app, c), true, true)
     page.SwitchToPage("vm")
 
     btVM := tview.NewButton("[#F66640::b]VMs").SetSelectedFunc(func() {

@@ -22,13 +22,19 @@ uid=1000(piyo) gid=1000(piyo) groups=1000(piyo),4(adm),24(cdrom),27(sudo),30(dip
 ```
 ユーザーにlibvirtの権限を付与します。  
 Grant libvirt privileges to users.
+
 ``` bash
-piyo@ubuntu-hoge:~$ sudo gpasswd -a piyo libvirt
-sudo gpasswd -a piyo libvirt
-Adding user piyo to group libvirt
-piyo@ubuntu-hoge:~$ id
-uid=1000(piyo) gid=1000(piyo) groups=1000(piyo),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),120(lpadmin),131(sambashare),134(libvirt)
+piyo@ubuntu-hoge:~$ sudo su
+root@ubuntu-libvirt3:/home/piyo# cat > /etc/polkit-1/localauthority/50-local.d/50-libvirt.pkla  <<EOF
+[Passwordless libvirt access]
+Identity=unix-group:piyo
+Action=org.libvirt.unix.manage
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+EOF
 ```
+
 Install  
 ``` bash
 git clone https://github.com/nyanco01/virt-tui

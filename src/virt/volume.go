@@ -5,7 +5,7 @@ import (
 	"time"
 
 	libvirt "libvirt.org/go/libvirt"
-	libvirtxml "libvirt.org/libvirt-go-xml"
+    libvirtxml "libvirt.org/go/libvirtxml"
 
 	"github.com/nyanco01/virt-tui/src/operate"
 )

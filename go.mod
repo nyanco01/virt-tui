@@ -6,8 +6,8 @@ require (
 	github.com/gdamore/tcell/v2 v2.4.1-0.20210905002822-f057f0a857a1
 	github.com/google/uuid v1.3.0
 	github.com/rivo/tview v0.0.0-20220812085834-0e6b21a48e96
-	libvirt.org/libvirt-go v7.4.0+incompatible
-	libvirt.org/libvirt-go-xml v7.4.0+incompatible
+	libvirt.org/go/libvirt v1.8007.0
+	libvirt.org/go/libvirtxml v1.8009.0
 )
 
 require (

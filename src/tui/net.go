@@ -4,9 +4,10 @@ import (
 	//"log"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/nyanco01/virt-tui/src/virt"
 	"github.com/rivo/tview"
-	libvirt "libvirt.org/libvirt-go"
+	libvirt "libvirt.org/go/libvirt"
+
+	"github.com/nyanco01/virt-tui/src/virt"
 )
 
 

@@ -240,7 +240,6 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 }
             }
 
-
             if vols != l && cnt % 6 != 0 {
                 tview.Print(screen, "│", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
             }

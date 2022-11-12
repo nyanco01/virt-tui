@@ -1,9 +1,10 @@
 package tui
 
 import (
-    //"log"
+	//"log"
 
-	//"github.com/gdamore/tcell/v2"
+	"github.com/gdamore/tcell/v2"
+	"github.com/nyanco01/virt-tui/src/virt"
 	"github.com/rivo/tview"
 	libvirt "libvirt.org/libvirt-go"
 )
@@ -11,6 +12,16 @@ import (
 
 func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
+    list := tview.NewList()
+    list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
+
+    for i, net := range virt.GetNetworkList(con) {
+        list.AddItem(net.Name, net.NetType, rune(i+'0'), nil)
+    }
+
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(list, 0, 1, true)
 
     return flex
 }

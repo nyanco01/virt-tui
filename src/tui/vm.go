@@ -136,6 +136,7 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     flex := tview.NewFlex()
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40,40,40))
+    list.SetShortcutColor(tcell.Color214)
 
     VirtualMachineStatus = map[string]bool{}
 
@@ -181,6 +182,7 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     })
 
     btCreate := tview.NewButton("Create")
+    btCreate.SetBackgroundColor(tcell.Color202)
 
     // If the last item on the list is selected, toggle to move focus to the button
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

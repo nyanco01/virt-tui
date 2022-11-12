@@ -354,6 +354,8 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
     })
 
     btCreate := tview.NewButton("Create")
+    btCreate.SetBackgroundColor(tcell.Color220)
+    btCreate.SetLabelColor(tcell.Color232)
 
     // If the last item on the list is selected, toggle to move focus to the button
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

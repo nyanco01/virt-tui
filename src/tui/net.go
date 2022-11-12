@@ -15,6 +15,8 @@ func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
     flex := tview.NewFlex()
     list := tview.NewList()
     list.SetBorder(false).SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
+    list.SetSecondaryTextColor(tcell.Color33)
+    list.SetShortcutColor(tcell.Color87)
 
     for i, net := range virt.GetNetworkList(con) {
         list.AddItem(net.Name, net.NetType, rune(i+'0'), nil)

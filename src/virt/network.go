@@ -6,8 +6,17 @@ import (
 	libvirt "libvirt.org/go/libvirt"
     libvirtxml "libvirt.org/go/libvirtxml"
 
-	//"github.com/nyanco01/virt-tui/src/operate"
+	"github.com/nyanco01/virt-tui/src/operate"
 )
+
+
+type DomainIF struct {
+    AttachVM        string
+    MacAddr         string
+    // If the VM is running, the interface is given a name
+    Name            string
+}
+
 
 
 type NetworkInfo struct {
@@ -15,6 +24,39 @@ type NetworkInfo struct {
     Mode        string
     NetType     string
     Source      string
+}
+
+
+
+
+
+func GetDomIFListByBridgeName(con *libvirt.Connect, source string) []DomainIF {
+    doms, err := con.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get domain list: %v", err)
+    }
+
+    var ifList []DomainIF
+
+    for _, dom := range doms {
+        defer dom.Free()
+        xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+        if err != nil {
+            log.Fatalf("failed to get domain xml: %v", err)
+        }
+        var domXML libvirtxml.Domain
+        err = domXML.Unmarshal(xml)
+        if err != nil {
+            log.Fatalf("failed to unmarshal xml by domain: %v", err)
+        }
+        for _, iface := range domXML.Devices.Interfaces {
+            if iface.Source.Bridge.Bridge == source {
+                n := operate.GetIFNameByMAC(iface.MAC.Address)
+                ifList = append(ifList, DomainIF{AttachVM: domXML.Name, MacAddr: iface.MAC.Address, Name: n})
+            }
+        }
+    }
+    return ifList
 }
 
 

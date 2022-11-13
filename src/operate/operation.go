@@ -202,6 +202,51 @@ func ListBridgeIF() []string {
 }
 
 
+func GetBridgeMasterIF(brIF string, underIFs []string) string {
+    allIF, err := ioutil.ReadDir("/sys/class/net/" + brIF + "/brif/")
+    if err != nil {
+        //log.Fatalf("failed to get if list by /sys: %v", err)
+        return ""
+    }
+    for _, i := range allIF {
+        check := false
+        for _, u := range underIFs {
+            if i.Name() == u {
+                check = true
+                break
+            }
+        }
+        if !check {
+            return i.Name()
+        }
+    }
+    return ""
+}
+
+
+func GetIFNameByMAC(mac string) string {
+    listNIC, err := net.Interfaces()
+    if err != nil {
+        log.Fatalf("failed to get network interface list: %v", err)
+    }
+    macAddr, err := net.ParseMAC(mac)
+
+    if err != nil {
+        log.Fatalf("failed to parse MAC Address: %v", err)
+    }
+    lastThreeBites := macAddr[3:6]
+    firstThreeBites := []byte{254, 84, 00}
+    var m net.HardwareAddr = append(firstThreeBites, lastThreeBites...)
+    //fmt.Println(m)
+    for _, nic := range listNIC {
+        if nic.HardwareAddr.String() == m.String() {
+            return nic.Name
+        }
+    }
+    return ""
+}
+
+
 func NewMacAddrNotOverlap(listAddr []net.HardwareAddr) string {
     var macAddr net.HardwareAddr
     for {

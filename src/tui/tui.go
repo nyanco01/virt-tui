@@ -20,19 +20,20 @@ func still() *tview.Box {
 }
 
 func configStyles() {
-        tview.Styles = tview.Theme{
-                PrimitiveBackgroundColor:    tcell.ColorBlack,
-                ContrastBackgroundColor:     tcell.ColorDarkBlue,
-                MoreContrastBackgroundColor: tcell.ColorGreen,
-                BorderColor:                 tcell.ColorWhite,
-                TitleColor:                  tcell.ColorWhite,
-                GraphicsColor:               tcell.ColorWhite,
-                PrimaryTextColor:            tcell.ColorGhostWhite,
-                SecondaryTextColor:          tcell.ColorYellow,
-                TertiaryTextColor:           tcell.ColorGreen,
-                InverseTextColor:            tcell.ColorDeepSkyBlue,
-                ContrastSecondaryTextColor:  tcell.ColorDarkCyan,
-        }
+    bgc := tcell.NewRGBColor(0,0,0)
+    tview.Styles = tview.Theme{
+            PrimitiveBackgroundColor:    bgc,
+            ContrastBackgroundColor:     tcell.ColorDarkBlue,
+            MoreContrastBackgroundColor: tcell.ColorGreen,
+            BorderColor:                 tcell.ColorWhite,
+            TitleColor:                  tcell.ColorWhite,
+            GraphicsColor:               tcell.ColorWhite,
+            PrimaryTextColor:            tcell.ColorGhostWhite,
+            SecondaryTextColor:          tcell.ColorYellow,
+            TertiaryTextColor:           tcell.ColorGreen,
+            InverseTextColor:            tcell.ColorDeepSkyBlue,
+            ContrastSecondaryTextColor:  tcell.ColorDarkCyan,
+    }
 }
 
 func MakeApp() *tview.Application {

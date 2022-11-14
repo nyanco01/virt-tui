@@ -83,7 +83,7 @@ func (n *Network)Draw(screen tcell.Screen) {
     tview.Print(screen, fmt.Sprintf("Name: [blue]%s", n.source), x+2, y+4, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("Type: [blue]%s", n.networkType), x+2, y+5, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
-    if n.networkType != "Private" {
+    if n.networkType == "Bridge" {
 
         // master
         for i := x+1; i <= x+1+boxW; i++ {

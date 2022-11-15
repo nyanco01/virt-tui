@@ -196,6 +196,11 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 vols = 0
             }
 
+            // Prevent out-of-array references when volume is deleted
+            if len(p.volumes) - 1 < vols {
+                break
+            }
+
             if cnt % 6 != 5 {
                 var volColor tcell.Color
                 // Change the display depending on whether it is selected or not

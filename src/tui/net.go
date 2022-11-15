@@ -156,6 +156,11 @@ func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         }
     })
 
+    if list.GetItemCount() != 0 {
+        main, _ := list.GetItemText(list.GetCurrentItem())
+        page.SwitchToPage(main)
+    }
+
     flex.SetDirection(tview.FlexRow).
         AddItem(list, 0, 1, true)
 

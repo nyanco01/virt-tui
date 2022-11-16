@@ -35,8 +35,6 @@ type Pool struct {
     onClickCreate       bool
     clickVolIndex       int
 
-    testClick           int
-
     selectedCreateFunc  func()
     selectedDeleteFunc  func(volIndex int)
 }
@@ -275,7 +273,6 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 			return false, nil
 		}
 
-        p.testClick = y
         var volSpacers bool
         if (y - 8 + p.lineOfset) % 6 == 0 {
             volSpacers = true
@@ -306,6 +303,10 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
                 p.onClickCreate = false
                 if 3+px <= x && 8+py <= y && !volSpacers {
                     p.clickVolIndex = (y - 8 + p.lineOfset) / 6
+                    // Exception handling when an item is clicked on a location after it has been erased
+                    if len(p.volumes)-1 < p.clickVolIndex {
+                        break
+                    }
                     if p.selectedDeleteFunc != nil {
                         p.selectedDeleteFunc(p.clickVolIndex)
                     }

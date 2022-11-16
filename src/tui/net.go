@@ -26,6 +26,10 @@ type Network struct {
     master              string
     source              string
     ifList              []virt.DomainIF
+
+    lineOfset           int
+    lineOfsetMax        int
+    oldheight           int
 }
 
 
@@ -47,36 +51,44 @@ func NewNetwork(con *libvirt.Connect, netInfo virt.NetworkInfo) *Network {
         master:         m,
         source:         netInfo.Source,
         ifList:         iflist,
+
+        lineOfset:      0,
+        lineOfsetMax:   0,
+        oldheight:      0,
     }
 }
 
 
 func (n *Network)Draw(screen tcell.Screen) {
     n.Box.DrawForSubclass(screen, n)
-    x, y, w, _ := n.GetInnerRect()
+    x, y, w, h := n.GetInnerRect()
 
     boxW := 30
-
-
     bc := tcell.ColorSkyblue
+    netStyle := tcell.StyleDefault
+    netStyle = netStyle.Foreground(bc)
+    netStyle = netStyle.Background(tview.Styles.PrimitiveBackgroundColor)
+
+    l := len(n.ifList)
+    fullHeight := 1 + (l*4)
 
     // network
     for i := x+1; i <= x+1+boxW; i++ {
-        screen.SetContent(i, y+1, tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
+        screen.SetContent(i, y+1, tview.Borders.Horizontal, nil, netStyle)
     }
     for i := x+1; i <= x+1+boxW; i++ {
-        screen.SetContent(i, y+6, tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
+        screen.SetContent(i, y+6, tview.Borders.Horizontal, nil, netStyle)
     }
     for i := y+2; i <= y+5; i++ {
-        screen.SetContent(x+1, i, tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
+        screen.SetContent(x+1, i, tview.Borders.Vertical, nil, netStyle)
+        screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, netStyle)
     }
     // Left
-    screen.SetContent(x+1, y+1, tview.Borders.TopLeft, nil, tcell.StyleDefault.Foreground(bc))
-    screen.SetContent(x+1, y+6, tview.Borders.BottomLeft, nil, tcell.StyleDefault.Foreground(bc))
+    screen.SetContent(x+1, y+1, tview.Borders.TopLeft, nil, netStyle)
+    screen.SetContent(x+1, y+6, tview.Borders.BottomLeft, nil, netStyle)
     // Right
-    screen.SetContent(x+1+boxW, y+1, tview.Borders.TopRight, nil, tcell.StyleDefault.Foreground(bc))
-    screen.SetContent(x+1+boxW, y+6, tview.Borders.BottomRight, nil, tcell.StyleDefault.Foreground(bc))
+    screen.SetContent(x+1+boxW, y+1, tview.Borders.TopRight, nil, netStyle)
+    screen.SetContent(x+1+boxW, y+6, tview.Borders.BottomRight, nil, netStyle)
     // master name
     tview.Print(screen, "Network", x+2, y+2, len("Network"), tview.AlignCenter, tcell.ColorWhiteSmoke)
     tview.Print(screen, " ------------------- ", x+2, y+3, len(" ------------------- "), tview.AlignCenter, bc)
@@ -87,56 +99,115 @@ func (n *Network)Draw(screen tcell.Screen) {
 
         // master
         for i := x+1; i <= x+1+boxW; i++ {
-            screen.SetContent(i, y+9, tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
+            screen.SetContent(i, y+9, tview.Borders.Horizontal, nil, netStyle)
         }
         for i := x+1; i <= x+1+boxW; i++ {
-            screen.SetContent(i, y+13, tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
+            screen.SetContent(i, y+13, tview.Borders.Horizontal, nil, netStyle)
         }
         for i := y+10; i <= y+12; i++ {
-            screen.SetContent(x+1, i, tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
-            screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
+            screen.SetContent(x+1, i, tview.Borders.Vertical, nil, netStyle)
+            screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, netStyle)
         }
         // Left
-        screen.SetContent(x+1, y+9, tview.Borders.TopLeft, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1, y+13, tview.Borders.BottomLeft, nil, tcell.StyleDefault.Foreground(bc))
+        screen.SetContent(x+1, y+9, tview.Borders.TopLeft, nil, netStyle)
+        screen.SetContent(x+1, y+13, tview.Borders.BottomLeft, nil, netStyle)
         // Right
-        screen.SetContent(x+1+boxW, y+9, tview.Borders.TopRight, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW, y+13, tview.Borders.BottomRight, nil, tcell.StyleDefault.Foreground(bc))
+        screen.SetContent(x+1+boxW, y+9, tview.Borders.TopRight, nil, netStyle)
+        screen.SetContent(x+1+boxW, y+13, tview.Borders.BottomRight, nil, netStyle)
         // master name
         tview.Print(screen, "Physical Interfaces", x+2, y+10, len("Physical Interfaces"), tview.AlignCenter, tcell.ColorWhiteSmoke)
         tview.Print(screen, " ------------------- ", x+2, y+11, len(" ------------------- "), tview.AlignCenter, bc)
         tview.Print(screen, fmt.Sprintf("Name: [blue]%s", n.master), x+2, y+12, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
-        screen.SetContent(x+5, y+6,tview.Borders.TopT, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+5, y+7,tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+5, y+8,tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+5, y+9,tview.Borders.BottomT, nil, tcell.StyleDefault.Foreground(bc))
+        screen.SetContent(x+5, y+6,tview.Borders.TopT, nil, netStyle)
+        screen.SetContent(x+5, y+7,tview.Borders.Vertical, nil, netStyle)
+        screen.SetContent(x+5, y+8,tview.Borders.Vertical, nil, netStyle)
+        screen.SetContent(x+5, y+9,tview.Borders.BottomT, nil, netStyle)
     }
 
     if len(n.ifList) != 0 {
-        for i, domif := range n.ifList {
-            for j := 0; j < 4; j++ {
-                screen.SetContent(x+boxW+6, y+1+(4*i)+j, tview.Borders.Vertical, nil, tcell.StyleDefault.Foreground(bc))
+        if h >= fullHeight {
+            // Drawing iface list
+            for i, domif := range n.ifList {
+                for j := 0; j < 4; j++ {
+                    screen.SetContent(x+boxW+6, y+1+(4*i)+j, tview.Borders.Vertical, nil, netStyle)
+                }
+                for j := 0; j < 3; j++ {
+                    screen.SetContent(x+boxW+11, y+1+(4*i)+j, '▌', nil, tcell.StyleDefault.Foreground(tcell.Color87))
+                }
+                tview.Print(screen,"├───", x+boxW+6, y+1+(4*i), len("├───"), tview.AlignLeft, bc)
+                tview.Print(screen, fmt.Sprintf("Name: %s", domif.Name), x+boxW+12, y+1+(4*i), w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("AttachVM: %s", domif.AttachVM), x+boxW+12, y+2+(4*i), w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("MAC Addr: %s", domif.MacAddr), x+boxW+12, y+3+(4*i), w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
             }
-            for j := 0; j < 3; j++ {
-                screen.SetContent(x+boxW+11, y+1+(4*i)+j, '▌', nil, tcell.StyleDefault.Foreground(tcell.Color87))
+        } else {
+            if n.oldheight != 0 && n.oldheight < h && n.lineOfset != 0 {
+                n.lineOfset--
             }
-            tview.Print(screen,"├───", x+boxW+6, y+1+(4*i), len("├───"), tview.AlignLeft, bc)
-            tview.Print(screen, fmt.Sprintf("Name: %s", domif.Name), x+boxW+12, y+1+(4*i), w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("AttachVM: %s", domif.AttachVM), x+boxW+12, y+2+(4*i), w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("MAC Addr: %s", domif.MacAddr), x+boxW+12, y+3+(4*i), w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
-
+            n.lineOfsetMax = fullHeight - h
+            cnt := n.lineOfset
+            var ifaceNum int
+            for i := 0; i < h; i++ {
+                ifaceNum = cnt / 4
+                if len(n.ifList)-1 < ifaceNum {
+                    break
+                }
+                screen.SetContent(x+boxW+6, y+i+1, tview.Borders.Vertical, nil, netStyle)
+                switch cnt % 4 {
+                case 0:
+                    tview.Print(screen, "├───", x+boxW+6, y+i+1, len("├───"), tview.AlignLeft, bc)
+                    tview.Print(screen, fmt.Sprintf("Name: %s", n.ifList[ifaceNum].Name), x+boxW+12, y+i+1, w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
+                case 1:
+                    tview.Print(screen, fmt.Sprintf("AttachVM: %s", n.ifList[ifaceNum].AttachVM), x+boxW+12, y+i+1, w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
+                case 2:
+                    tview.Print(screen, fmt.Sprintf("MAC Addr: %s", n.ifList[ifaceNum].MacAddr), x+boxW+12, y+i+1, w-(boxW+11), tview.AlignLeft, tcell.ColorWhiteSmoke)
+                }
+                if cnt % 4 != 3 {
+                    screen.SetContent(x+boxW+11, y+i+1, '▌', nil, tcell.StyleDefault.Foreground(tcell.Color87))
+                }
+                cnt++
+            }
+            n.oldheight = h
         }
-        screen.SetContent(x+1+boxW, y+3,tview.Borders.LeftT, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW+1, y+3,tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW+2, y+3,tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW+3, y+3,tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW+4, y+3,tview.Borders.Horizontal, nil, tcell.StyleDefault.Foreground(bc))
-        screen.SetContent(x+1+boxW+5, y+3,tview.Borders.RightT, nil, tcell.StyleDefault.Foreground(bc))
+
+        screen.SetContent(x+1+boxW, y+3,tview.Borders.LeftT, nil, netStyle)
+        screen.SetContent(x+1+boxW+1, y+3,tview.Borders.Horizontal, nil, netStyle)
+        screen.SetContent(x+1+boxW+2, y+3,tview.Borders.Horizontal, nil, netStyle)
+        screen.SetContent(x+1+boxW+3, y+3,tview.Borders.Horizontal, nil, netStyle)
+        screen.SetContent(x+1+boxW+4, y+3,tview.Borders.Horizontal, nil, netStyle)
+        screen.SetContent(x+1+boxW+5, y+3,tview.Borders.RightT, nil, netStyle)
     }
 
 }
 
+
+func (n *Network)MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+    return n.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+        x, y := event.Position()
+		if !n.InRect(x, y) {
+			return false, nil
+		}
+
+        px, _, _, _ := n.GetInnerRect()
+        switch action {
+        case tview.MouseScrollUp:
+            if px + 42 < x {
+                if n.lineOfset > 0 {
+                    n.lineOfset--
+                    consumed = true
+                }
+            }
+        case tview.MouseScrollDown:
+            if px + 42 < x {
+                if n.lineOfset < n.lineOfsetMax {
+                    n.lineOfset++
+                    consumed = true
+                }
+            }
+        }
+        return
+    })
+}
 
 func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()

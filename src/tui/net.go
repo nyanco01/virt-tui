@@ -209,6 +209,7 @@ func (n *Network)MouseHandler() func(action tview.MouseAction, event *tcell.Even
     })
 }
 
+
 func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
@@ -232,8 +233,44 @@ func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         page.SwitchToPage(main)
     }
 
+    btCreate := tview.NewButton("Create")
+    btCreate.SetBackgroundColor(tcell.Color39)
+    btCreate.SetLabelColor(tcell.Color232)
+
+    // If the last item on the list is selected, toggle to move focus to the button
+    list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        if (event.Key() == tcell.KeyTab) || (event.Key() == tcell.KeyDown) {
+            if (list.GetItemCount() - 1) == list.GetCurrentItem() {
+                app.SetFocus(btCreate)
+                return nil
+            }
+        }
+        return event
+    })
+    // Toggling when the focus is on a button focuses the list
+    btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        switch event.Key() {
+        case tcell.KeyTab, tcell.KeyDown:
+            list.SetCurrentItem(0)
+            app.SetFocus(list)
+            return nil
+        case tcell.KeyBacktab, tcell.KeyUp:
+            list.SetCurrentItem(list.GetItemCount() - 1)
+            app.SetFocus(list)
+            return nil
+        }
+        return event
+    })
+
+    btCreate.SetSelectedFunc(func() {
+        modal := MakeNetCreate(app, con, page, list)
+        page.AddPage("Create", modal, true, true)
+        app.SetFocus(modal)
+    })
+
     flex.SetDirection(tview.FlexRow).
-        AddItem(list, 0, 1, true)
+        AddItem(list, 0, 1, true).
+        AddItem(btCreate, 5, 0, false)
 
     return flex
 }

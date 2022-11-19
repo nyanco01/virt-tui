@@ -190,6 +190,22 @@ func ListBridgeIF() []string {
 }
 
 
+func ListPhysicsIF() []string {
+    listNIC, err := net.Interfaces()
+    if err != nil {
+        log.Fatalf("failed to get network interface list: %v", err)
+    }
+    var brName []string
+    for _, nic := range listNIC {
+        //fmt.Println(nic)
+        if f, err := os.Stat("/sys/class/net/" + nic.Name + "/device"); !(os.IsNotExist(err) || !f.IsDir()) {
+            brName = append(brName, nic.Name)
+        }
+    }
+    return brName
+}
+
+
 func GetBridgeMasterIF(brIF string, underIFs []string) string {
     allIF, err := ioutil.ReadDir("/sys/class/net/" + brIF + "/brif/")
     if err != nil {

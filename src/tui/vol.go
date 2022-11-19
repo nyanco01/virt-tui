@@ -373,7 +373,6 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         }
         return event
     })
-
     // Toggling when the focus is on a button focuses the list
     btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         switch event.Key() {

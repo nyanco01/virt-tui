@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-    operate.FolderInit()
+    operate.Initialize()
 
     app := tui.MakeApp()
 

@@ -90,18 +90,6 @@ func GetPWD() string {
 }
 
 
-func FolderInit() {
-    if !DirCheck("./data/image") {
-        os.Mkdir("./data/image", os.ModePerm)
-    }
-    if !DirCheck("./tmp/init") {
-        os.MkdirAll("./tmp/init", os.ModePerm)
-    }
-    if !DirCheck("./tmp/iso") {
-        os.MkdirAll("./tmp/iso", os.ModePerm)
-    }
-}
-
 
 func PrintDownloadPercent(done chan int64, c chan float64, path string, total int64) {
 

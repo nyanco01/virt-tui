@@ -53,7 +53,6 @@ func FileCopy(src, dst string) {
 	}
     defer srcFile.Close()
 
-
     dstFile, err := os.Create(dst)
 	if err != nil {
 		fmt.Println(err)
@@ -95,7 +94,6 @@ func GetPWD() string {
     }
     return pwd
 }
-
 
 
 func PrintDownloadPercent(done chan int64, c chan float64, path string, total int64) {

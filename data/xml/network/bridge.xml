@@ -1,6 +1,6 @@
-<interface type='bridge'>
-  <mac address='52:54:00:e1:a9:38'/>
-  <source bridge='br0'/>
-  <model type='virtio'/>
-  <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
-</interface>
+<network>
+  <name>bridge</name>
+  <uuid>388a101b-3991-413f-8d84-244ef4a4edb3</uuid>
+  <forward mode='bridge'/>
+  <bridge name='br0'/>
+</network>

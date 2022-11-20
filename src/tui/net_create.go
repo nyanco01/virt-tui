@@ -5,8 +5,11 @@ import (
 
 	//"fmt"
 
+	"fmt"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/nyanco01/virt-tui/src/operate"
+	"github.com/nyanco01/virt-tui/src/virt"
 	"github.com/rivo/tview"
 	libvirt "libvirt.org/go/libvirt"
 )
@@ -62,11 +65,27 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
     form := tview.NewForm()
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
+    view.SetDynamicColors(true)
+    view.SetTextAlign(tview.AlignCenter)
 
     form.AddInputField("Network Name     ", "", 30, nil, nil)
     listPhysicsIF := operate.ListPhysicsIF()
     form.AddDropDown("Physical Interface", listPhysicsIF, 0, nil)
-    form.AddButton("  OK  ", nil)
+    form.AddButton("  OK  ", func() {
+        name := form.GetFormItem(0).(*tview.InputField).GetText()
+        _, source := form.GetFormItem(1).(*tview.DropDown).GetCurrentOption()
+
+        if name == "" {
+            view.SetText("Name is empty.").SetTextColor(tcell.ColorRed)
+        } else if !virt.CheckNetworkName(con, name) {
+            view.SetText("The same network name exists.").SetTextColor(tcell.ColorRed)
+        } else if !operate.CheckBridgeSource(source) {
+            view.SetText(fmt.Sprintf("[skyblue]%s [red]is already a member of the bridge interface.", source))
+        } else {
+            virt.CreateNetworkByBridge(con, name, source)
+        }
+
+    })
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
         app.SetFocus(list)
@@ -89,7 +108,7 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
 
-    form.AddInputField("Network Name     ", "", 30, nil, nil)
+    form.AddInputField("Network Name      ", "", 30, nil, nil)
     form.AddButton("  OK  ", nil)
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
@@ -113,7 +132,7 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
 
-    form.AddInputField("Network Name     ", "", 30, nil, nil)
+    form.AddInputField("Network Name      ", "", 30, nil, nil)
     form.AddButton("  OK  ", nil)
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")

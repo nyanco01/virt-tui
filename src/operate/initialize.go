@@ -17,6 +17,9 @@ func FolderInit() {
     if !DirCheck("./tmp/iso") {
         os.MkdirAll("./tmp/iso", os.ModePerm)
     }
+    if !DirCheck("./tmp/shell") {
+        os.MkdirAll("./tmp/shell", os.ModePerm)
+    }
 }
 
 

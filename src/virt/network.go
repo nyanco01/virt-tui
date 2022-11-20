@@ -18,16 +18,12 @@ type DomainIF struct {
 }
 
 
-
 type NetworkInfo struct {
     Name        string
     Mode        string
     NetType     string
     Source      string
 }
-
-
-
 
 
 func GetDomIFListByBridgeName(con *libvirt.Connect, source string) []DomainIF {
@@ -95,4 +91,28 @@ func GetNetworkList(con *libvirt.Connect) []NetworkInfo {
     }
 
     return libvirtNetList
+}
+
+
+func CheckNetworkName(con *libvirt.Connect, name string) bool {
+    netlist, err := con.ListAllNetworks(libvirt.CONNECT_LIST_NETWORKS_ACTIVE | libvirt.CONNECT_LIST_NETWORKS_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get network list: %v", err)
+    }
+    for _, net := range netlist {
+        n, err := net.GetName()
+        if err != nil {
+            log.Fatalf("failed to get network name: %v", err)
+        }
+        if n == name {
+            return false
+        }
+    }
+    return true
+}
+
+
+func CreateNetworkByBridge(con *libvirt.Connect, name, source string) {
+    operate.CreateShellByBridgeIF(name, source)
+    operate.RunShellByCreateBridgeIF(name)
 }

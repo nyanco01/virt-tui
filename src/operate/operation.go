@@ -21,6 +21,13 @@ import (
 )
 
 
+func ShellError(err error) {
+    if err != nil {
+        log.Fatalf("failed to run shell command: %v", err)
+    }
+}
+
+
 func FileCheck(path string) bool {
     if f, err := os.Stat(path); os.IsNotExist(err) || f.IsDir() {
         return false
@@ -344,10 +351,53 @@ func MakeISO(user, pass, host, domain string) {
     u := "./tmp/init/user-data"
     m := "./tmp/init/meta-data"
     err = exec.Command("genisoimage", "-output", path, "-volid", "cidata", "-joliet", "-rock", u, m).Run()
+    ShellError(err)
 }
 
 
 func CreateUUID() string {
     uuidObj, _ := uuid.NewUUID()
     return uuidObj.String()
+}
+
+
+func CheckBridgeSource(name string) bool {
+    brList := ListBridgeIF()
+    for _, br := range brList {
+        allIFs, _ := ioutil.ReadDir("/sys/class/net/" + br + "/brif/")
+        for _, iface := range allIFs {
+            if iface.Name() == name {
+                return false
+            }
+        }
+    }
+
+    return true
+}
+
+
+func CreateShellByBridgeIF(name, source string) {
+    path := "./tmp/shell/" + name + ".sh"
+    err := exec.Command("touch", path).Run()
+    ShellError(err)
+
+    file, err := os.OpenFile(path, os.O_WRONLY | os.O_APPEND, 0644)
+    if err != nil {
+        log.Fatalf("failed to open file: %v",err)
+    }
+    defer file.Close()
+
+    writeText := "#!/bin/bash"
+    fmt.Fprintln(file, writeText)
+    writeText = "sudo brctl addbr " + name
+    fmt.Fprintln(file, writeText)
+    writeText = "sudo brctl addif " + name + " " + source
+    fmt.Fprintln(file, writeText)
+}
+
+
+func RunShellByCreateBridgeIF(name string) {
+    path := "./tmp/shell/" + name + ".sh"
+    err := exec.Command("bash", path).Run()
+    ShellError(err)
 }

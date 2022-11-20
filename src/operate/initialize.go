@@ -23,7 +23,6 @@ func FolderInit() {
 }
 
 
-
 func Initialize() {
     FolderInit()
     /*

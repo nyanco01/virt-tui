@@ -83,6 +83,12 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
             view.SetText(fmt.Sprintf("[skyblue]%s [red]is already a member of the bridge interface.", source))
         } else {
             virt.CreateNetworkByBridge(con, name, source)
+            net := virt.GetNetworkByName(con, name)
+            list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
+            page.AddPage(net.Name, NewNetwork(con, net), true, true)
+
+            page.RemovePage("Create")
+            app.SetFocus(list)
         }
 
     })

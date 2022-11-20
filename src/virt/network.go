@@ -4,7 +4,7 @@ import (
 	"log"
 
 	libvirt "libvirt.org/go/libvirt"
-    libvirtxml "libvirt.org/go/libvirtxml"
+	libvirtxml "libvirt.org/go/libvirtxml"
 
 	"github.com/nyanco01/virt-tui/src/operate"
 )
@@ -53,6 +53,40 @@ func GetDomIFListByBridgeName(con *libvirt.Connect, source string) []DomainIF {
         }
     }
     return ifList
+}
+
+
+func GetNetworkByName(con *libvirt.Connect, name string) NetworkInfo {
+    net, err := con.LookupNetworkByName(name)
+    if err != nil {
+        log.Fatalf("failed to get network: %v", err)
+    }
+    defer net.Free()
+
+    var netInfo NetworkInfo
+    xml, err := net.GetXMLDesc(0 | libvirt.NETWORK_XML_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get xml by network: %v", err)
+    }
+    var netXML libvirtxml.Network
+    err = netXML.Unmarshal(xml)
+    if err != nil {
+        log.Fatalf("failed to unmarshal xml by network: %v", err)
+    }
+    
+    if netXML.Bridge != nil {
+        if netXML.Forward != nil {
+            if netXML.Forward.Mode == "nat" {
+                netInfo = NetworkInfo{Name: netXML.Name, Mode: netXML.Forward.Mode, NetType: "NAT", Source: netXML.Bridge.Name}
+            } else if netXML.Forward.Mode == "bridge" {
+                netInfo = NetworkInfo{Name: netXML.Name, Mode: netXML.Forward.Mode, NetType: "Bridge", Source: netXML.Bridge.Name}
+            }
+        } else {
+            netInfo = NetworkInfo{Name: netXML.Name, Mode: "none", NetType: "Private", Source: netXML.Bridge.Name}
+        }
+    }
+    
+    return netInfo
 }
 
 
@@ -115,4 +149,24 @@ func CheckNetworkName(con *libvirt.Connect, name string) bool {
 func CreateNetworkByBridge(con *libvirt.Connect, name, source string) {
     operate.CreateShellByBridgeIF(name, source)
     operate.RunShellByCreateBridgeIF(name)
+
+    var netXML libvirtxml.Network
+    netXML.Unmarshal(operate.FileRead("./data/xml/network/bridge.xml"))
+    netXML.Name = name
+    netXML.UUID = operate.CreateUUID()
+    netXML.Bridge.Name = name
+
+    xml, err := netXML.Marshal()
+    if err != nil {
+        log.Fatalf("failed to marshal xml by network: %v", err)
+    }
+    net, err := con.NetworkDefineXML(xml)
+    if err != nil {
+        log.Fatalf("failed to create network: %v",err)
+    }
+    err = net.SetAutostart(true)
+    err = net.Create()
+    if err != nil {
+        log.Fatalf("failed to start network: %v",err)
+    }
 }

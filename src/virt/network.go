@@ -158,15 +158,38 @@ func CreateNetworkByBridge(con *libvirt.Connect, name, source string) {
 
     xml, err := netXML.Marshal()
     if err != nil {
-        log.Fatalf("failed to marshal xml by network: %v", err)
+        log.Fatalf("failed to marshal xml by bridge network: %v", err)
     }
     net, err := con.NetworkDefineXML(xml)
     if err != nil {
-        log.Fatalf("failed to create network: %v",err)
+        log.Fatalf("failed to create bridge network: %v",err)
     }
     err = net.SetAutostart(true)
     err = net.Create()
     if err != nil {
-        log.Fatalf("failed to start network: %v",err)
+        log.Fatalf("failed to start bridge network: %v",err)
+    }
+}
+
+
+func CreateNetworkByPrivate(con *libvirt.Connect, name string) {
+    var netXML libvirtxml.Network
+    netXML.Unmarshal(operate.FileRead("./data/xml/network/private.xml"))
+    netXML.Name = name
+    netXML.UUID = operate.CreateUUID()
+    netXML.Bridge.Name = name
+
+    xml, err := netXML.Marshal()
+    if err != nil {
+        log.Fatalf("failed to marshal xml by private network: %v", err)
+    }
+    net, err := con.NetworkDefineXML(xml)
+    if err != nil {
+        log.Fatalf("failed to create private network: %v",err)
+    }
+    err = net.SetAutostart(true)
+    err = net.Create()
+    if err != nil {
+        log.Fatalf("failed to start private network: %v",err)
     }
 }

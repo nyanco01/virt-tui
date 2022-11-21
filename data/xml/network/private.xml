@@ -1,0 +1,6 @@
+<network ipv6='yes'>
+  <name>private</name>
+  <uuid>7a3b7497-1ec7-8aef-6d5c-38dff9109e93</uuid>
+  <bridge name='private' stp='on' delay='0'/>
+  <mac address='00:16:3e:5d:c7:9e'/>
+</network>

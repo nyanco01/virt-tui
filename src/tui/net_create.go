@@ -169,7 +169,23 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
     view := tview.NewTextView()
 
     form.AddInputField("Network Name      ", "", 20, nil, nil)
-    form.AddButton("  OK  ", nil)
+    form.AddButton("  OK  ", func() {
+        name := form.GetFormItem(0).(*tview.InputField).GetText()
+
+        if name == "" {
+            view.SetText("Name is empty.").SetTextColor(tcell.ColorRed)
+        } else if !virt.CheckNetworkName(con, name) {
+            view.SetText("The same network name exists.").SetTextColor(tcell.ColorRed)
+        } else {
+            virt.CreateNetworkByPrivate(con, name)
+            net := virt.GetNetworkByName(con, name)
+            list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
+            page.AddPage(net.Name, NewNetwork(con, net), true, true)
+
+            page.RemovePage("Create")
+            app.SetFocus(list)
+        }
+    })
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
         app.SetFocus(list)

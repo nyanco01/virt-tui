@@ -1,7 +1,6 @@
 package operate
 
 import (
-	//"log"
 	"fmt"
 	"log"
 	"os"

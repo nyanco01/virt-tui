@@ -1,10 +1,6 @@
 package tui
 
 import (
-	//"log"
-
-	//"fmt"
-
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
@@ -15,23 +11,28 @@ import (
 )
 
 
+func InputFieldIPv4Subnet(text string, ch rune) bool {
+    if ch == '.' || ch == '/' {
+        return true
+    }
+    if len(text) > 18 {
+        return false
+    }
+    for i := 0; i <= 9; i++ {
+        if ch == rune(i + '0') {
+            return true
+        }
+    }
+    return false
+}
+
+
 func SelectPageButton(app *tview.Application, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
 
     btBridge := tview.NewButton("Bridge")
-    btBridge.SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
-    btBridge.SetBackgroundColorActivated(tcell.Color81)
-    btBridge.SetLabelColorActivated(tcell.Color232)
-
     btNAT := tview.NewButton("NAT")
-    btNAT.SetBackgroundColor(tcell.NewRGBColor(80, 80, 80))
-    btNAT.SetBackgroundColorActivated(tcell.Color87)
-    btNAT.SetLabelColorActivated(tcell.Color232)
-
     btPrivate := tview.NewButton("Private")
-    btPrivate.SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
-    btPrivate.SetBackgroundColorActivated(tcell.Color33)
-    btPrivate.SetLabelColorActivated(tcell.Color232)
 
     btBridge.SetSelectedFunc(func() {
         if page.HasPage("Bridge") {
@@ -49,8 +50,36 @@ func SelectPageButton(app *tview.Application, page *tview.Pages) *tview.Flex {
         }
     })
 
+    app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+        pageTitle, _ := page.GetFrontPage()
+        switch pageTitle {
+        case "Bridge":
+            btBridge.SetBackgroundColor(tcell.Color81)
+            btBridge.SetLabelColor(tcell.Color232)
+            btNAT.SetBackgroundColor(tcell.NewRGBColor(80, 80, 80))
+            btNAT.SetLabelColor(tcell.ColorWhiteSmoke)
+            btPrivate.SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
+            btPrivate.SetLabelColor(tcell.ColorWhiteSmoke)
+        case "NAT":
+            btBridge.SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
+            btBridge.SetLabelColor(tcell.ColorWhiteSmoke)
+            btNAT.SetBackgroundColor(tcell.Color87)
+            btNAT.SetLabelColor(tcell.Color232)
+            btPrivate.SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
+            btPrivate.SetLabelColor(tcell.ColorWhiteSmoke)
+        case "Private":
+            btBridge.SetBackgroundColor(tcell.NewRGBColor(40, 40, 40))
+            btBridge.SetLabelColor(tcell.ColorWhiteSmoke)
+            btNAT.SetBackgroundColor(tcell.NewRGBColor(80, 80, 80))
+            btNAT.SetLabelColor(tcell.ColorWhiteSmoke)
+            btPrivate.SetBackgroundColor(tcell.Color33)
+            btPrivate.SetLabelColor(tcell.Color232)
+        }
+        return false
+    })
+
     flex.
-        AddItem(btBridge, 0, 1, true).
+        AddItem(btBridge, 0, 1, false).
         AddItem(btNAT, 0, 1, false).
         AddItem(btPrivate, 0, 1, false)
 
@@ -68,7 +97,7 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
     view.SetDynamicColors(true)
     view.SetTextAlign(tview.AlignCenter)
 
-    form.AddInputField("Network Name     ", "", 30, nil, nil)
+    form.AddInputField("Network Name     ", "", 20, nil, nil)
     listPhysicsIF := operate.ListPhysicsIF()
     form.AddDropDown("Physical Interface", listPhysicsIF, 0, nil)
     form.AddButton("  OK  ", func() {
@@ -90,7 +119,6 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
             page.RemovePage("Create")
             app.SetFocus(list)
         }
-
     })
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
@@ -114,7 +142,9 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
 
-    form.AddInputField("Network Name      ", "", 30, nil, nil)
+    form.AddInputField("Network Name      ", "", 20, nil, nil)
+    form.AddInputField("Address Range     ", "", 20, nil, nil)
+    form.GetFormItem(1).(*tview.InputField).SetAcceptanceFunc(InputFieldIPv4Subnet)
     form.AddButton("  OK  ", nil)
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
@@ -138,7 +168,7 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
 
-    form.AddInputField("Network Name      ", "", 30, nil, nil)
+    form.AddInputField("Network Name      ", "", 20, nil, nil)
     form.AddButton("  OK  ", nil)
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
@@ -158,18 +188,44 @@ func MakeNetCreate(app *tview.Application, con *libvirt.Connect, mainPage *tview
     flex := tview.NewFlex()
     flex.SetBorder(true).SetTitle("Create Network Menu")
     createPage := tview.NewPages()
-    buttons := SelectPageButton(app, createPage)
 
     createPage.AddPage("Bridge", MakeNetCreatePageByBridge(app, con, mainPage, list), true, true)
     createPage.AddPage("NAT", MakeNetCreatePageByNAT(app, con, mainPage, list), true, true)
     createPage.AddPage("Private", MakeNetCreatePageByPrivate(app, con, mainPage, list), true, true)
 
     createPage.SwitchToPage("Bridge")
-    app.SetFocus(createPage)
 
+    buttons := SelectPageButton(app, createPage)
     flex.SetDirection(tview.FlexRow).
         AddItem(buttons, 1, 0, false).
         AddItem(createPage, 0, 1, true)
+
+    flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        pageTitle ,_ := createPage.GetFrontPage()
+        switch pageTitle {
+        case "Bridge":
+            if event.Key() == tcell.KeyRight {
+                createPage.SwitchToPage("NAT")
+                return nil
+            }
+        case "NAT":
+            if event.Key() == tcell.KeyRight {
+                createPage.SwitchToPage("Private")
+                return nil
+            } else if event.Key() == tcell.KeyLeft {
+                createPage.SwitchToPage("Bridge")
+                return nil
+            }
+        case "Private":
+            if event.Key() == tcell.KeyLeft {
+                createPage.SwitchToPage("NAT")
+                return nil
+            }
+        default:
+            return event
+        }
+        return event
+    })
 
     return pageModal(flex, 62, 15)
 }

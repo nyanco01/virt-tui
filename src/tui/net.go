@@ -22,14 +22,19 @@ type Network struct {
     *tview.Box
     name                string
     networkType         string
-    // For bridge interface, stores master physical interface name
-    master              string
     source              string
     ifList              []virt.DomainIF
 
     lineOfset           int
     lineOfsetMax        int
     oldheight           int
+
+    // For bridge interface, stores master physical interface name
+    master              string
+    // NAT
+    address             string
+    dhcpStart           string
+    dhcpEnd             string
 }
 
 
@@ -44,17 +49,26 @@ func NewNetwork(con *libvirt.Connect, netInfo virt.NetworkInfo) *Network {
     }
     m := operate.GetBridgeMasterIF(netInfo.Source, ifnames)
 
+    var a, s, l string = "", "", ""
+    if netInfo.NetType == "NAT" {
+        a, s, l = virt.GetAddressByNATNetwork(con, netInfo.Name)
+    }
+
     return &Network{
         Box:            tview.NewBox(),
         name:           netInfo.Name,
         networkType:    netInfo.NetType,
-        master:         m,
         source:         netInfo.Source,
         ifList:         iflist,
 
         lineOfset:      0,
         lineOfsetMax:   0,
         oldheight:      0,
+
+        master:         m,
+        address:        a,
+        dhcpStart:      s,
+        dhcpEnd:        l,
     }
 }
 
@@ -83,20 +97,20 @@ func (n *Network)Draw(screen tcell.Screen) {
         screen.SetContent(x+1, i, tview.Borders.Vertical, nil, netStyle)
         screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, netStyle)
     }
-    // Left
+    // Left corner
     screen.SetContent(x+1, y+1, tview.Borders.TopLeft, nil, netStyle)
     screen.SetContent(x+1, y+6, tview.Borders.BottomLeft, nil, netStyle)
-    // Right
+    // Right corner
     screen.SetContent(x+1+boxW, y+1, tview.Borders.TopRight, nil, netStyle)
     screen.SetContent(x+1+boxW, y+6, tview.Borders.BottomRight, nil, netStyle)
     // master name
     tview.Print(screen, "Network", x+2, y+2, len("Network"), tview.AlignCenter, tcell.ColorWhiteSmoke)
     tview.Print(screen, " ------------------- ", x+2, y+3, len(" ------------------- "), tview.AlignCenter, bc)
-    tview.Print(screen, fmt.Sprintf("Name: [blue]%s", n.source), x+2, y+4, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("Type: [blue]%s", n.networkType), x+2, y+5, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("   Name: [blue]%s", n.source), x+2, y+4, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("   Type: [blue]%s", n.networkType), x+2, y+5, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
-    if n.networkType == "Bridge" {
-
+    switch n.networkType {
+    case "Bridge":
         // master
         for i := x+1; i <= x+1+boxW; i++ {
             screen.SetContent(i, y+9, tview.Borders.Horizontal, nil, netStyle)
@@ -108,22 +122,52 @@ func (n *Network)Draw(screen tcell.Screen) {
             screen.SetContent(x+1, i, tview.Borders.Vertical, nil, netStyle)
             screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, netStyle)
         }
-        // Left
+        // Left corner
         screen.SetContent(x+1, y+9, tview.Borders.TopLeft, nil, netStyle)
         screen.SetContent(x+1, y+13, tview.Borders.BottomLeft, nil, netStyle)
-        // Right
+        // Right corner
         screen.SetContent(x+1+boxW, y+9, tview.Borders.TopRight, nil, netStyle)
         screen.SetContent(x+1+boxW, y+13, tview.Borders.BottomRight, nil, netStyle)
         // master name
         tview.Print(screen, "Physical Interfaces", x+2, y+10, len("Physical Interfaces"), tview.AlignCenter, tcell.ColorWhiteSmoke)
         tview.Print(screen, " ------------------- ", x+2, y+11, len(" ------------------- "), tview.AlignCenter, bc)
-        tview.Print(screen, fmt.Sprintf("Name: [blue]%s", n.master), x+2, y+12, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
+        tview.Print(screen, fmt.Sprintf("   Name: [blue]%s", n.master), x+2, y+12, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
         screen.SetContent(x+5, y+6,tview.Borders.TopT, nil, netStyle)
         screen.SetContent(x+5, y+7,tview.Borders.Vertical, nil, netStyle)
         screen.SetContent(x+5, y+8,tview.Borders.Vertical, nil, netStyle)
         screen.SetContent(x+5, y+9,tview.Borders.BottomT, nil, netStyle)
+    case "NAT":
+        for i := x+1; i <= x+1+boxW; i++ {
+            screen.SetContent(i, y+6, ' ', nil, netStyle)
+        }
+        tview.Print(screen, fmt.Sprintf("Address: [blue]%s", n.address), x+2, y+6, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
+        natY := 0
+        if n.dhcpStart != "" {
+            natY = y+11
+            tview.Print(screen, " ------------------- ", x+2, y+7, len(" ------------------- "), tview.AlignCenter, bc)
+            tview.Print(screen, "DHCP", x+2, y+8, boxW, tview.AlignLeft, tcell.ColorSkyblue)
+            tview.Print(screen, fmt.Sprintf("  Start: [skyblue]%s", n.dhcpStart), x+2, y+9, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("    End: [skyblue]%s", n.dhcpEnd), x+2, y+10, boxW, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            for i := y+6; i <= y+11; i++ {
+                screen.SetContent(x+1, i, tview.Borders.Vertical, nil, netStyle)
+                screen.SetContent(x+1+boxW, i, tview.Borders.Vertical, nil, netStyle)
+            }
+
+        } else {
+            natY = y+7
+            screen.SetContent(x+1, y+6, tview.Borders.Vertical, nil, netStyle)
+            screen.SetContent(x+1+boxW, y+6, tview.Borders.Vertical, nil, netStyle)
+        }
+        for i := x+1; i <= x+1+boxW; i++ {
+            screen.SetContent(i, natY, tview.Borders.Horizontal, nil, netStyle)
+        }
+        screen.SetContent(x+1, natY, tview.Borders.BottomLeft, nil, netStyle)
+        screen.SetContent(x+1+boxW, natY, tview.Borders.BottomRight, nil, netStyle)
+
     }
+
+
 
     if len(n.ifList) != 0 {
         if h >= fullHeight {

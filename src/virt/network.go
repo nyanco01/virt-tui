@@ -128,6 +128,30 @@ func GetNetworkList(con *libvirt.Connect) []NetworkInfo {
 }
 
 
+func GetAddressByNATNetwork(con *libvirt.Connect, name string) (addr, dhcpStart, dhcpEnd string) {
+    net, err := con.LookupNetworkByName(name)
+    if err != nil {
+        log.Fatalf("failed to get network: %v", err)
+    }
+    defer net.Free()
+    xml, err := net.GetXMLDesc(0 | libvirt.NETWORK_XML_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get network xml: %v", err)
+    }
+    var netXML libvirtxml.Network
+    netXML.Unmarshal(xml)
+    addr = operate.GetCIDR(netXML.IPs[0].Address, netXML.IPs[0].Netmask)
+    if netXML.IPs[0].DHCP != nil {
+        dhcpStart = netXML.IPs[0].DHCP.Ranges[0].Start
+        dhcpEnd = netXML.IPs[0].DHCP.Ranges[0].End
+    } else {
+        dhcpStart = ""
+        dhcpEnd = ""
+    }
+    return
+}
+
+
 func CheckNetworkName(con *libvirt.Connect, name string) bool {
     netlist, err := con.ListAllNetworks(libvirt.CONNECT_LIST_NETWORKS_ACTIVE | libvirt.CONNECT_LIST_NETWORKS_INACTIVE)
     if err != nil {

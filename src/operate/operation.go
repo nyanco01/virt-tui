@@ -434,6 +434,14 @@ func ParseMask(subnet string) string {
 }
 
 
+func GetCIDR(addr, mask string) string {
+    tmp := net.ParseIP(mask).To4()
+    m := net.IPv4Mask(tmp[0], tmp[1], tmp[2], tmp[3])
+    cidr := net.IPNet{IP: net.ParseIP(addr), Mask: m}
+    return cidr.String()
+}
+
+
 func CreateIPsBySubnet(subnet string) (firstIP, secondIP, lastIP string) {
     _, CIDR, _ := net.ParseCIDR(subnet)
     firstIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], CIDR.IP[2], CIDR.IP[3]+1).String()

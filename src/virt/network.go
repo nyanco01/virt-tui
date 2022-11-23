@@ -172,6 +172,37 @@ func CreateNetworkByBridge(con *libvirt.Connect, name, source string) {
 }
 
 
+func CreateNetworkByNAT(con *libvirt.Connect, name, network string) {
+    var netXML libvirtxml.Network
+    netXML.Unmarshal(operate.FileRead("./data/xml/network/nat.xml"))
+    netXML.Name = name
+    netXML.UUID = operate.CreateUUID()
+    netXML.Bridge.Name = name
+    IFaddr, dhcpStart, dhcpEnd := operate.CreateIPsBySubnet(network)
+    netXML.IPs[0].Address = IFaddr
+    netXML.IPs[0].Netmask = operate.ParseMask(network)
+    if operate.CheckSubnetLower30(network) {
+        netXML.IPs[0].DHCP = nil
+    } else {
+        netXML.IPs[0].DHCP.Ranges[0].Start = dhcpStart
+        netXML.IPs[0].DHCP.Ranges[0].End = dhcpEnd
+    }
+    xml, err := netXML.Marshal()
+    if err != nil {
+        log.Fatalf("failed to marshal xml by nat network: %v", err)
+    }
+    net, err := con.NetworkDefineXML(xml)
+    if err != nil {
+        log.Fatalf("failed to create nat network: %v",err)
+    }
+    err = net.SetAutostart(true)
+    err = net.Create()
+    if err != nil {
+        log.Fatalf("failed to start nat network: %v",err)
+    }
+}
+
+
 func CreateNetworkByPrivate(con *libvirt.Connect, name string) {
     var netXML libvirtxml.Network
     netXML.Unmarshal(operate.FileRead("./data/xml/network/private.xml"))
@@ -192,4 +223,33 @@ func CreateNetworkByPrivate(con *libvirt.Connect, name string) {
     if err != nil {
         log.Fatalf("failed to start private network: %v",err)
     }
+}
+
+
+func CheckNetworkRange(con *libvirt.Connect, subnet string) bool {
+    netlist, err := con.ListAllNetworks(libvirt.CONNECT_LIST_NETWORKS_ACTIVE | libvirt.CONNECT_LIST_NETWORKS_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get network list: %v", err)
+    }
+    for _, net := range netlist {
+        defer net.Free()
+        xml, err := net.GetXMLDesc(0 | libvirt.NETWORK_XML_INACTIVE)
+        if err != nil {
+            log.Fatalf("failed to get xml: %v", err)
+        }
+        var netXML libvirtxml.Network
+        netXML.Unmarshal(xml)
+        if netXML.Forward != nil {
+            if netXML.Forward.Mode == "nat" {
+                if netXML.IPs != nil {
+                    for _, ip := range netXML.IPs {
+                        if operate.CheckOtherNATNetwork(ip.Address, ip.Netmask, subnet) {
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false
 }

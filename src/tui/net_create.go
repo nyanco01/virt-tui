@@ -97,7 +97,7 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
     view.SetDynamicColors(true)
     view.SetTextAlign(tview.AlignCenter)
 
-    form.AddInputField("Network Name     ", "", 20, nil, nil)
+    form.AddInputField("Network Name     ", "", 30, nil, nil)
     listPhysicsIF := operate.ListPhysicsIF()
     form.AddDropDown("Physical Interface", listPhysicsIF, 0, nil)
     form.AddButton("  OK  ", func() {
@@ -141,11 +141,34 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
     form := tview.NewForm()
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
+    descriptionSubnet := tview.NewTextView().SetTextColor(tcell.Color87).SetTextAlign(tview.AlignCenter)
+    descriptionSubnet.SetText("Address Range should be put in \nCIDR format. ( e.g. 172.16.10.0/24 )")
 
-    form.AddInputField("Network Name      ", "", 20, nil, nil)
-    form.AddInputField("Address Range     ", "", 20, nil, nil)
+    form.AddInputField("Network Name      ", "", 30, nil, nil)
+    form.AddInputField("Address Range     ", "", 30, nil, nil)
     form.GetFormItem(1).(*tview.InputField).SetAcceptanceFunc(InputFieldIPv4Subnet)
-    form.AddButton("  OK  ", nil)
+    form.AddButton("  OK  ", func() {
+        name := form.GetFormItem(0).(*tview.InputField).GetText()
+        subnet := form.GetFormItem(1).(*tview.InputField).GetText()
+
+        if name == "" {
+            view.SetText("Name is empty.").SetTextColor(tcell.ColorRed)
+        } else if !virt.CheckNetworkName(con, name) {
+            view.SetText("The same network name exists.").SetTextColor(tcell.ColorRed)
+        } else if !operate.CheckNetworkSubnet(subnet) {
+            view.SetText("Please enter the correct subnet mask.").SetTextColor(tcell.ColorRed)
+        } else if virt.CheckNetworkRange(con, subnet) {
+            view.SetText("The address range is overlapped by other NAT networks.").SetTextColor(tcell.ColorRed)
+        } else {
+            virt.CreateNetworkByNAT(con, name, subnet)
+            net := virt.GetNetworkByName(con, name)
+            list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
+            page.AddPage(net.Name, NewNetwork(con, net), true, true)
+
+            page.RemovePage("Create")
+            app.SetFocus(list)
+        }
+    })
     form.AddButton("Cancel", func() {
         page.RemovePage("Create")
         app.SetFocus(list)
@@ -154,6 +177,7 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
     flex.SetDirection(tview.FlexRow).
         AddItem(menuTitle, 1, 0, false).
         AddItem(form, 0, 1, true).
+        AddItem(descriptionSubnet, 2, 0, false).
         AddItem(view, 1, 0, false)
 
     return flex
@@ -168,7 +192,7 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
     form.SetLabelColor(tcell.Color81)
     view := tview.NewTextView()
 
-    form.AddInputField("Network Name      ", "", 20, nil, nil)
+    form.AddInputField("Network Name      ", "", 30, nil, nil)
     form.AddButton("  OK  ", func() {
         name := form.GetFormItem(0).(*tview.InputField).GetText()
 

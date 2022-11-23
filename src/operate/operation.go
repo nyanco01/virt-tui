@@ -399,3 +399,61 @@ func RunShellByCreateBridgeIF(name string) {
     err := exec.Command("bash", path).Run()
     ShellError(err)
 }
+
+
+func CheckNetworkSubnet(subnet string) bool {
+    ip, ipnet, err := net.ParseCIDR(subnet)
+    if err != nil {
+        return false
+    }
+    return ip.String() == ipnet.IP.String()
+}
+
+
+func CheckOtherNATNetwork(addr, mask, subnet string) bool {
+    m := net.ParseIP(mask).To4()
+    CIDR1 := net.IPNet{IP: net.ParseIP(addr), Mask: net.IPv4Mask(m[0], m[1], m[2], m[3])}
+    _, CIDR2, err := net.ParseCIDR(subnet)
+    if err != nil {
+        return true
+    }
+    return (CIDR1.Contains(CIDR2.IP.To4()) || CIDR2.Contains(CIDR1.IP.To4()))
+}
+
+
+func CheckSubnetLower30(subnet string) bool {
+    _, CIDR, _ := net.ParseCIDR(subnet)
+    a, b := CIDR.Mask.Size()
+    return b-a <= 2
+}
+
+
+func ParseMask(subnet string) string {
+    _, CIDR, _ := net.ParseCIDR(subnet)
+    return net.IPv4(CIDR.Mask[0], CIDR.Mask[1], CIDR.Mask[2], CIDR.Mask[3]).String()
+}
+
+
+func CreateIPsBySubnet(subnet string) (firstIP, secondIP, lastIP string) {
+    _, CIDR, _ := net.ParseCIDR(subnet)
+    firstIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], CIDR.IP[2], CIDR.IP[3]+1).String()
+    secondIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], CIDR.IP[2], CIDR.IP[3]+2).String()
+    f, l := CIDR.Mask.Size()
+    s := l - f
+    if s != 0 {
+        switch {
+        case s <= 8:
+            lastIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], CIDR.IP[2], (CIDR.IP[3] + 1<<s)-2).String()
+        case 8 < s && s <= 16:
+            tmp := s - 8
+            lastIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], (CIDR.IP[2]+ 1<<tmp)-1, 254).String()
+        case 16 < s && s <= 24:
+            tmp := s - 16
+            lastIP = net.IPv4(CIDR.IP[0], (CIDR.IP[1]+ 1<<tmp)-1, 255, 254).String()
+        case 24 < s:
+            tmp := s - 24
+            lastIP = net.IPv4((CIDR.IP[0]+ 1<<tmp)-1, 255, 255, 254).String()
+        }
+    }
+    return
+}

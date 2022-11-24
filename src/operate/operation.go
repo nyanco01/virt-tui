@@ -441,7 +441,7 @@ func GetCIDR(addr, mask string) string {
     return cidr.String()
 }
 
-
+// Generate the starting address and the address allocated by DHCP from the subnet in CIDR format
 func CreateIPsBySubnet(subnet string) (firstIP, secondIP, lastIP string) {
     _, CIDR, _ := net.ParseCIDR(subnet)
     firstIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], CIDR.IP[2], CIDR.IP[3]+1).String()
@@ -455,12 +455,19 @@ func CreateIPsBySubnet(subnet string) (firstIP, secondIP, lastIP string) {
         case 8 < s && s <= 16:
             tmp := s - 8
             lastIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], (CIDR.IP[2]+ 1<<tmp)-1, 254).String()
+        // Commented out because the address range that can be distributed 
+        // by DHCP of libvirt is up to /16.
+        /*
         case 16 < s && s <= 24:
             tmp := s - 16
             lastIP = net.IPv4(CIDR.IP[0], (CIDR.IP[1]+ 1<<tmp)-1, 255, 254).String()
         case 24 < s:
             tmp := s - 24
             lastIP = net.IPv4((CIDR.IP[0]+ 1<<tmp)-1, 255, 255, 254).String()
+        */
+        default:
+            tmp := s - 8
+            lastIP = net.IPv4(CIDR.IP[0], CIDR.IP[1], (CIDR.IP[2]+ 1<<tmp)-1, 254).String()
         }
     }
     return

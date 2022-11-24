@@ -56,6 +56,43 @@ func GetDomIFListByBridgeName(con *libvirt.Connect, source string) []DomainIF {
 }
 
 
+func CheckContainDomIF(con *libvirt.Connect, name string) bool {
+    net, err := con.LookupNetworkByName(name)
+    if err != nil {
+        log.Fatalf("failed to get network: %v", err)
+    }
+    defer net.Free()
+    brName, err := net.GetBridgeName()
+    if err != nil {
+        log.Fatalf("failed to get bridge name: %v", err)
+    }
+    doms, err := con.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE | libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get domain list: %v", err)
+    }
+    for _, dom := range doms {
+        defer dom.Free()
+    }
+    for _, dom := range doms {
+        xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+        if err != nil {
+            log.Fatalf("failed to get domain xml: %v", err)
+        }
+        var domXML libvirtxml.Domain
+        err = domXML.Unmarshal(xml)
+        if err != nil {
+            log.Fatalf("failed to unmarshal xml by domain: %v", err)
+        }
+        for _, iface := range domXML.Devices.Interfaces {
+            if iface.Source.Bridge.Bridge == brName {
+                return true
+            }
+        }
+    }
+    return false
+}
+
+
 func GetNetworkByName(con *libvirt.Connect, name string) NetworkInfo {
     net, err := con.LookupNetworkByName(name)
     if err != nil {
@@ -276,4 +313,20 @@ func CheckNetworkRange(con *libvirt.Connect, subnet string) bool {
         }
     }
     return false
+}
+
+
+func DeleteNetwork(con *libvirt.Connect, name string) {
+    net, err := con.LookupNetworkByName(name)
+    if err != nil {
+        log.Fatalf("failed to get network: %v", err)
+    }
+    err = net.Destroy()
+    if err != nil {
+        log.Fatalf("failed to shutdown network: %v", err)
+    }
+    err = net.Undefine()
+    if err != nil {
+        log.Fatalf("failed to delete network: %v", err)
+    }
 }

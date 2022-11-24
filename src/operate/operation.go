@@ -87,6 +87,15 @@ func FileWrite(path, name, data string) {
 }
 
 
+func FileDelete(path string) {
+    if FileCheck(path) {
+        if err := os.Remove(path); err != nil {
+            log.Fatalf("failed to remove file: %v", err)
+        }
+    }
+}
+
+
 func GetPWD() string {
     pwd, err := os.Getwd()
     if err != nil {
@@ -122,8 +131,6 @@ func PrintDownloadPercent(done chan int64, c chan float64, path string, total in
 			var percent float64 = float64(size) / float64(total) * 100
             // Adjusted to 70% when download is complete
             percent = percent * 0.7
-			//fmt.Printf("%.0f", percent)
-			//fmt.Println("%")
             c<- percent
 		}
 
@@ -202,7 +209,6 @@ func ListPhysicsIF() []string {
     }
     var brName []string
     for _, nic := range listNIC {
-        //fmt.Println(nic)
         if f, err := os.Stat("/sys/class/net/" + nic.Name + "/device"); !(os.IsNotExist(err) || !f.IsDir()) {
             brName = append(brName, nic.Name)
         }
@@ -214,7 +220,6 @@ func ListPhysicsIF() []string {
 func GetBridgeMasterIF(brIF string, underIFs []string) string {
     allIF, err := ioutil.ReadDir("/sys/class/net/" + brIF + "/brif/")
     if err != nil {
-        //log.Fatalf("failed to get if list by /sys: %v", err)
         return ""
     }
     for _, i := range allIF {
@@ -246,7 +251,6 @@ func GetIFNameByMAC(mac string) string {
     lastThreeBites := macAddr[3:6]
     firstThreeBites := []byte{254, 84, 00}
     var m net.HardwareAddr = append(firstThreeBites, lastThreeBites...)
-    //fmt.Println(m)
     for _, nic := range listNIC {
         if nic.HardwareAddr.String() == m.String() {
             return nic.Name
@@ -391,6 +395,14 @@ func CreateShellByBridgeIF(name, source string) {
     fmt.Fprintln(file, writeText)
     writeText = "sudo brctl addif " + name + " " + source
     fmt.Fprintln(file, writeText)
+}
+
+
+func DeleteBridgeIF(name string) {
+    err := exec.Command("brctl", "delbr", name).Run()
+    if err != nil {
+        log.Fatalf("failed to delete bridge interface: %v", err)
+    }
 }
 
 

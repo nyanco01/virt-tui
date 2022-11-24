@@ -16,8 +16,6 @@ import (
 )
 
 
-
-
 type Network struct {
     *tview.Box
     name                string
@@ -270,6 +268,11 @@ func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         if page.HasPage(mainText) {
             page.SwitchToPage(mainText)
         }
+    })
+
+    list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
+        modal := MakeNetDelete(app, con, page, list, s1, s2)
+        page.AddPage("Delete", modal, true, true)
     })
 
     if list.GetItemCount() != 0 {

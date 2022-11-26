@@ -12,8 +12,21 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
-
 var VirtualMachineStatus    map[string]bool
+
+const (
+    leftTop         string = "╔══"
+    leftDown        string = "╚══"
+    rightTop        string = "══╗"
+    rightDown       string = "══╝"
+)
+
+const (
+    leftTriangle    rune = 'ᐊ'
+    rightTraiangle  rune = 'ᐅ'
+    upTraiangle     rune = 'ᐃ'
+    downTraiangle   rune = 'ᐁ'
+)
 
 type CPU struct {
     *tview.Box
@@ -42,6 +55,7 @@ type NIC struct {
     bwUp            [500]int64
     bwDown          [500]int64
     name            string
+    MACAddr         string
 }
 
 
@@ -55,7 +69,6 @@ func NotUpVM(name string) *tview.Box {
 
     return box
 }
-
 
 // -------------------------------- Info --------------------------------
 func NewVMInfo(dom *libvirt.Domain) *tview.Box {
@@ -105,11 +118,12 @@ func NewCPU(vcpu uint) *CPU {
     }
 }
 
+
 func (c *CPU) Draw(screen tcell.Screen) {
     c.Box.DrawForSubclass(screen, c)
     x, y, w, h := c.GetInnerRect()
 
-    graphHeight := h - 5
+    graphHeight := h - 3
     if graphHeight < 0 {
         graphHeight = 0
     }
@@ -150,11 +164,12 @@ func (c *CPU) Draw(screen tcell.Screen) {
     }
 
     // draw
-    tview.Print(screen, "CPU", x, y-1, w, tview.AlignCenter, tcell.NewRGBColor(0, 255, 127))
-    tview.Print(screen, "╔══", x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(0, 255, 127))
-    tview.Print(screen, "══╗", x, y-1, w, tview.AlignRight, tcell.NewRGBColor(0, 255, 127))
 
-    tview.Print(screen, fmt.Sprintf("Guest VM CPU utilization is %.2f", c.usage[0]), x, y, w, tview.AlignCenter, tcell.ColorForestGreen)
+    tview.Print(screen, "CPU", x, y-1, w, tview.AlignCenter, tcell.NewRGBColor(0, 255, 127))
+    tview.Print(screen, leftTop, x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(0, 255, 127))
+    tview.Print(screen, rightTop, x, y-1, w, tview.AlignRight, tcell.NewRGBColor(0, 255, 127))
+
+    tview.Print(screen, fmt.Sprintf("%.2f%%", c.usage[0]), x, y, w, tview.AlignCenter, tcell.ColorForestGreen)
     tview.Print(screen, fmt.Sprintf("%d vCPUs ", c.vcpus), x, y, w, tview.AlignRight, tcell.ColorSpringGreen)
 
     color := setColorGradation(CPU_COLOR, len(graph))
@@ -163,9 +178,10 @@ func (c *CPU) Draw(screen tcell.Screen) {
     }
 
     l := len(graph)
-    tview.Print(screen, "╚══", x, y+2+l, w, tview.AlignLeft, tcell.NewRGBColor(0, 255, 127))
-    tview.Print(screen, "══╝", x, y+2+l, w, tview.AlignRight, tcell.NewRGBColor(0, 255, 127))
+    tview.Print(screen, leftDown, x, y+1+l, w, tview.AlignLeft, tcell.NewRGBColor(0, 255, 127))
+    tview.Print(screen, rightDown, x, y+1+l, w, tview.AlignRight, tcell.NewRGBColor(0, 255, 127))
 }
+
 
 func (c *CPU)Update(u float64) {
     l := len(c.usage)
@@ -201,11 +217,12 @@ func NewMemory() *Mem {
     }
 }
 
+
 func (m *Mem)Draw(screen tcell.Screen) {
     m.Box.DrawForSubclass(screen, m)
     x, y, w, h := m.GetInnerRect()
 
-    graphHeight := h - 5
+    graphHeight := h - 4
     if graphHeight < 0 {
         graphHeight = 0
     }
@@ -248,8 +265,8 @@ func (m *Mem)Draw(screen tcell.Screen) {
     memUsed := float64(m.usedMem / 1000)
 
     tview.Print(screen, "Memory", x, y-1, w, tview.AlignCenter, tcell.NewRGBColor(254, 89, 19))
-    tview.Print(screen, "╔══", x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(254, 89, 19))
-    tview.Print(screen, "══╗", x, y-1, w, tview.AlignRight, tcell.NewRGBColor(254, 89, 19))
+    tview.Print(screen, leftTop, x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(254, 89, 19))
+    tview.Print(screen, rightTop, x, y-1, w, tview.AlignRight, tcell.NewRGBColor(254, 89, 19))
 
     tview.Print(screen, fmt.Sprintf("Max %.3f MiB", memMax), x, y, w, tview.AlignRight, tcell.ColorDarkOrange)
     tview.Print(screen, fmt.Sprintf("Used %.3f MiB",memUsed), x, y+1, w, tview.AlignRight, tcell.ColorOrange)
@@ -260,10 +277,11 @@ func (m *Mem)Draw(screen tcell.Screen) {
     }
 
     l := len(graph)
-    tview.Print(screen, "╚══", x, y+3+l, w, tview.AlignLeft, tcell.NewRGBColor(254, 89, 19))
-    tview.Print(screen, "══╝", x, y+3+l, w, tview.AlignRight, tcell.NewRGBColor(254, 89, 19))
+    tview.Print(screen, leftDown, x, y+2+l, w, tview.AlignLeft, tcell.NewRGBColor(254, 89, 19))
+    tview.Print(screen, rightDown, x, y+2+l, w, tview.AlignRight, tcell.NewRGBColor(254, 89, 19))
 
 }
+
 
 func (m *Mem)Update(max, used uint64){
     m.maxMem = max
@@ -294,14 +312,17 @@ func NewDisk() *Disk {
     }
 }
 
+
 func (d *Disk)AddInfo(info virt.Diskinfo) *Disk {
     d.infos = append(d.infos, info)
     return d
 }
 
+
 func (d *Disk)GetInfoSize() int {
     return len(d.infos)
 }
+
 
 func (d *Disk)Draw(screen tcell.Screen) {
     d.Box.DrawForSubclass(screen, d)
@@ -341,7 +362,7 @@ func (d *Disk)Draw(screen tcell.Screen) {
 }
 
 // -------------------------- Network interface card ---------------------------
-func NewNIC() *NIC {
+func NewNIC(name, mac string) *NIC {
     bwU := [150][500]string{}
     for i := 0; i < 150; i++ {
         for j := 0; j < 500; j++ {
@@ -371,17 +392,24 @@ func NewNIC() *NIC {
         bwGraphDown:        bwD,
         bwUp:               bwUp,
         bwDown:             bwDown,
+        name:               name,
+        MACAddr:            mac,
     }
 }
+
 
 func (n *NIC)Draw(screen tcell.Screen) {
     n.Box.DrawForSubclass(screen, n)
     x, y, w, h := n.GetInnerRect()
 
+    nicStyle := tcell.StyleDefault
+    nicStyle = nicStyle.Foreground(tcell.NewRGBColor(20, 161, 156))
+    nicStyle = nicStyle.Background(tview.Styles.PrimitiveBackgroundColor)
+
     var Uploadjudge int64
     var Downloadjudge int64
 
-    graphHeight := int(h/2) - 2
+    graphHeight := int(h/2) - 1
     if graphHeight < 0 {
         graphHeight = 0
     }
@@ -393,9 +421,9 @@ func (n *NIC)Draw(screen tcell.Screen) {
         Uploadjudge += n.bwUp[i]
     }
     if (Uploadjudge / 5) > (1000 * 1000) {
-        for i := 0; i < w; i++ {
+        for i := 0; i < w-30; i++ {
             bandwidth := n.bwUp[i]
-            for j := 0; j < graphHeight; j++ {
+            for j := 0; j <= graphHeight; j++ {
                 if bandwidth > int64(1000 * 1000 * 100 / float64(brailleGradient * 4)) {
                     n.bwGraphUp[j][i] = "⣿"
                     bandwidth -= int64(1000 * 1000 * 100 / float64(brailleGradient * 4))
@@ -416,9 +444,9 @@ func (n *NIC)Draw(screen tcell.Screen) {
             }
         }
     } else {
-        for i := 0; i < w; i++ {
+        for i := 0; i < w-30; i++ {
             bandwidth := n.bwUp[i]
-            for j := 0; j < graphHeight; j++ {
+            for j := 0; j <= graphHeight; j++ {
                 if bandwidth > int64(1000 * 1000 / float64(brailleGradient * 4)) {
                     n.bwGraphUp[j][i] = "⣿"
                     bandwidth -= int64(1000 * 1000 / float64(brailleGradient * 4))
@@ -447,9 +475,9 @@ func (n *NIC)Draw(screen tcell.Screen) {
     }
 
     if (Downloadjudge / 5) > (1000 * 1000) {
-        for i := 0; i < w; i++ {
+        for i := 0; i < w-30; i++ {
             bandwidth := n.bwDown[i]
-            for j := 0; j < graphHeight; j++ {
+            for j := 0; j <= graphHeight; j++ {
                 if bandwidth > int64(1000 * 1000 * 100 / float64(brailleGradient * 4)) {
                     n.bwGraphDown[j][i] = "⣿"
                     bandwidth -= int64(1000 * 1000 * 100 / float64(brailleGradient * 4))
@@ -470,9 +498,9 @@ func (n *NIC)Draw(screen tcell.Screen) {
             }
         }
     } else {
-        for i := 0; i < w; i++ {
+        for i := 0; i < w-30; i++ {
             bandwidth := n.bwDown[i]
-            for j := 0; j < graphHeight; j++ {
+            for j := 0; j <= graphHeight; j++ {
                 if bandwidth > int64(1000 * 1000 / float64(brailleGradient * 4)) {
                     n.bwGraphDown[j][i] = "⣿"
                     bandwidth -= int64(1000 * 1000 / float64(brailleGradient * 4))
@@ -512,44 +540,75 @@ func (n *NIC)Draw(screen tcell.Screen) {
         graphDOWN = append(graphDOWN, tmpLine)
     }
 
-
     tview.Print(screen, "NIC", x, y-1, w, tview.AlignCenter, tcell.NewRGBColor(20, 161, 156))
-    tview.Print(screen, "╔══", x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
-    tview.Print(screen, "══╗", x, y-1, w, tview.AlignRight, tcell.NewRGBColor(20, 161, 156))
-    tview.Print(screen, fmt.Sprintf("Upload : %.2f KiB", float64(n.bwUp[0] / 1000)), x-30, y, w, tview.AlignRight, tcell.NewRGBColor(31, 247, 255))
+    tview.Print(screen, leftTop, x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
+    tview.Print(screen, rightTop, x, y-1, w, tview.AlignRight, tcell.NewRGBColor(20, 161, 156))
+
+    for i := y+1; i < y+h-2; i++ {
+        screen.SetContent(x+w-30, i, tview.Borders.Vertical, nil, nicStyle)
+    }
+
+    //tview.Print("")
+    var rateUPText, rateDOWNText string
+    var rateUP, rateDOWN int64
+    if n.bwUp[0] < 1000*1000 {
+        rateUPText = "KiB"
+        rateUP = 1000
+    } else if n.bwUp[0] < 1000*1000*1000 {
+        rateUPText = "MiB"
+        rateUP = 1000*1000
+    } else {
+        rateUPText = "GiB"
+        rateUP = 1000*1000*1000
+    }
+    if n.bwDown[0] < 1000*1000 {
+        rateDOWNText = "KiB"
+        rateDOWN = 1000
+    } else if n.bwDown[0] < 1000*1000*1000 {
+        rateDOWNText = "MiB"
+        rateDOWN = 1000*1000
+    } else {
+        rateDOWNText = "GiB"
+        rateDOWN = 1000*1000*1000
+    }
+    tview.Print(screen, fmt.Sprintf("%s %.2f %s", string(upTraiangle), float64(n.bwUp[0]) / float64(rateUP), rateUPText), x+w-28, y+(h/2)-1, 30, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
+    tview.Print(screen, fmt.Sprintf("%s %.2f %s", string(downTraiangle), float64(n.bwDown[0]) / float64(rateDOWN), rateDOWNText), x+w-28, y+(h/2), 30, tview.AlignLeft, tcell.NewRGBColor(80, 70, 149))
+    tview.Print(screen, fmt.Sprintf("NIC Name: [skyblue]%s", n.name), x+w-28, y+1, 30, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("MAC Addr: [skyblue]%s", n.MACAddr), x+w-28, y+2, 30, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
     colorUP := setColorGradation(NIC_UP_COLOR, len(graphUP))
     for i, line := range graphUP {
-        tview.Print(screen, line, x, y+1+i, w, tview.AlignRight, colorUP[i])
+        tview.Print(screen, line, x, y+i, w-30, tview.AlignRight, colorUP[i])
+        //tview.Print(screen, fmt.Sprintf("%d", i), x, y+1+i, w, tview.AlignLeft, colorUP[i])
     }
     l := len(graphUP)
 
-    tview.Print(screen, fmt.Sprintf("Download : %.2f KiB", float64(n.bwDown[0] / 1000)), x, y, w, tview.AlignRight, tcell.NewRGBColor(141, 232, 237))
     colorDOWN := setColorGradation(NIC_DOWN_COLOR, len(graphDOWN))
     for i, line := range graphDOWN {
-        tview.Print(screen, line, x, y+1+l+i, w, tview.AlignRight, colorDOWN[i])
+        tview.Print(screen, line, x, y+l+i, w-30, tview.AlignRight, colorDOWN[i])
+        //tview.Print(screen, fmt.Sprintf("%d", i), x, y+1+l+i, w, tview.AlignLeft, colorDOWN[i])
     }
     l += len(graphDOWN)
 
-    tview.Print(screen, "╚══", x, y+h-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
-    tview.Print(screen, "══╝", x, y+h-1, w, tview.AlignRight, tcell.NewRGBColor(20, 161, 156))
+    tview.Print(screen, leftDown, x, y+h-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
+    tview.Print(screen, rightDown, x, y+h-1, w, tview.AlignRight, tcell.NewRGBColor(20, 161, 156))
 
     if (Uploadjudge / 5) > (1000 * 1000) {
-        tview.Print(screen, "100 MiB", x, y+1, w, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
-        tview.Print(screen, "  1 MiB", x, y+len(graphUP), w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
+        tview.Print(screen, "100 MiB", x, y, w, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
+        tview.Print(screen, "  1 MiB", x, y+len(graphUP)-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
     } else {
-        tview.Print(screen, "  1 MiB", x, y+1, w, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
-        tview.Print(screen, "  1 KiB", x, y+len(graphUP), w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
+        tview.Print(screen, "  1 MiB", x, y, w, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
+        tview.Print(screen, "  1 KiB", x, y+len(graphUP)-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
     }
     if (Downloadjudge / 5) > (1000 * 1000) {
-        tview.Print(screen, "  1 MiB", x, y+1+len(graphUP), w, tview.AlignLeft, tcell.NewRGBColor(80, 70, 149))
+        tview.Print(screen, "  1 MiB", x, y+len(graphUP), w, tview.AlignLeft, tcell.NewRGBColor(80, 70, 149))
         tview.Print(screen, "100 MiB", x, y+l, w, tview.AlignLeft, tcell.NewRGBColor(141, 232, 237))
     } else {
-        tview.Print(screen, "  1 KiB", x, y+1+len(graphUP), w, tview.AlignLeft, tcell.NewRGBColor(80, 70, 149))
+        tview.Print(screen, "  1 KiB", x, y+len(graphUP), w, tview.AlignLeft, tcell.NewRGBColor(80, 70, 149))
         tview.Print(screen, "  1 MiB", x, y+l, w, tview.AlignLeft, tcell.NewRGBColor(141, 232, 237))
     }
-
 }
+
 
 func (n *NIC)Update(upload, download int64) {
     // Upload
@@ -573,9 +632,9 @@ func (n *NIC)Update(upload, download int64) {
 
 
 func NewVMStatus(app * tview.Application, dom *libvirt.Domain, name string) tview.Primitive{
+    flex := tview.NewFlex()
+    flex.SetBorder(false)
     vmstatus := tview.NewFlex().SetDirection(tview.FlexRow)
-    //vmstatus.SetTitle(name)
-    //vmstatus.SetBorder(true).SetBorderColor(tcell.NewHexColor(16683008))
 
     domInfo, err := dom.GetInfo()
     if err != nil {
@@ -588,11 +647,14 @@ func NewVMStatus(app * tview.Application, dom *libvirt.Domain, name string) tvie
     for _, info := range infos {
         disk.AddInfo(info)
     }
-    nic := NewNIC()
+    nic := NewNIC(virt.GetNICInfo(dom))
 
     vmstatus.AddItem(NewVMInfo(dom), 5, 1, false)
-    vmstatus.AddItem(cpu, 0, 1, false)
-    vmstatus.AddItem(mem, 0, 1, false)
+    flex.AddItem(cpu, 0, 1, false)
+    flex.AddItem(mem, 0, 1, false)
+    //vmstatus.AddItem(cpu, 0, 1, false)
+    //vmstatus.AddItem(mem, 0, 1, false)
+    vmstatus.AddItem(flex, 0, 1, false)
     vmstatus.AddItem(disk, 2 + (4 * disk.GetInfoSize()), 1, false)
     vmstatus.AddItem(nic, 0, 1, false)
 

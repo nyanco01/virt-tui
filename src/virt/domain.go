@@ -157,6 +157,25 @@ func GetDisks(d *libvirt.Domain) []Diskinfo {
 }
 
 
+func GetNICInfo(d *libvirt.Domain) (name, MAC string) {
+    xml, err := d.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get xml: %v", err)
+    }
+    var domXML libvirtxml.Domain
+    err = domXML.Unmarshal(xml)
+    if err != nil {
+        log.Fatalf("failed to unmarshal xml: %v", err)
+    }
+    for _, iface := range domXML.Devices.Interfaces {
+        MAC = iface.MAC.Address
+    }
+    name = operate.GetIFNameByMAC(MAC)
+    MAC = operate.ConvertMAC(MAC)
+    return
+}
+
+
 func LookupVMs(c *libvirt.Connect) []VM {
     vms := []VM{}
     domActive, err := c.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)

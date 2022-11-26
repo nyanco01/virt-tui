@@ -238,11 +238,7 @@ func GetBridgeMasterIF(brIF string, underIFs []string) string {
 }
 
 
-func GetIFNameByMAC(mac string) string {
-    listNIC, err := net.Interfaces()
-    if err != nil {
-        log.Fatalf("failed to get network interface list: %v", err)
-    }
+func ConvertMAC(mac string) string {
     macAddr, err := net.ParseMAC(mac)
 
     if err != nil {
@@ -251,8 +247,18 @@ func GetIFNameByMAC(mac string) string {
     lastThreeBites := macAddr[3:6]
     firstThreeBites := []byte{254, 84, 00}
     var m net.HardwareAddr = append(firstThreeBites, lastThreeBites...)
+    return m.String()
+}
+
+
+func GetIFNameByMAC(mac string) string {
+    listNIC, err := net.Interfaces()
+    if err != nil {
+        log.Fatalf("failed to get network interface list: %v", err)
+    }
+
     for _, nic := range listNIC {
-        if nic.HardwareAddr.String() == m.String() {
+        if nic.HardwareAddr.String() == ConvertMAC(mac) {
             return nic.Name
         }
     }

@@ -46,6 +46,7 @@ type Mem struct {
 type Disk struct {
     *tview.Box
     infos           []virt.Diskinfo
+    index           int
 }
 
 type NIC struct {
@@ -309,6 +310,7 @@ func NewDisk() *Disk {
     return &Disk {
         Box:        tview.NewBox(),
         infos:      []virt.Diskinfo{},
+        index:      0,
     }
 }
 
@@ -319,47 +321,66 @@ func (d *Disk)AddInfo(info virt.Diskinfo) *Disk {
 }
 
 
-func (d *Disk)GetInfoSize() int {
-    return len(d.infos)
-}
-
-
 func (d *Disk)Draw(screen tcell.Screen) {
     d.Box.DrawForSubclass(screen, d)
-    x, y, w, h := d.GetInnerRect()
+    //x, y, w, h := d.GetInnerRect()
+    x, y, w, _ := d.GetInnerRect()
 
     tview.Print(screen, "Disk", x, y, w, tview.AlignCenter, tcell.ColorDarkOrange)
-    for i, info := range d.infos {
-        if h >= 4 {
-            usage := float64(info.Allocation) / float64(info.Capacity)
 
-            // create usage bar
-            usageBar := ""
-            for i := 0; i < int(usage * float64(w)); i++ {
-                usageBar += "■"
-            }
-            // create bar
-            Bar := ""
-            for i := 0; i < w; i++{
-                Bar += "■"
-            }
+    usage := float64(d.infos[d.index].Allocation) / float64(d.infos[d.index].Capacity)
 
-            tview.Print(screen, fmt.Sprintf("File : %s",info.Path), x, y + (i*4) + 1, w, tview.AlignLeft, tcell.ColorOrange)
-            tview.Print(screen, fmt.Sprintf("Volume size : %.2f", float64(info.Capacity / (1024 * 1024 * 1024))), x, y + (i*4) + 1, w, tview.AlignRight, tcell.ColorGhostWhite)
-            tview.Print(screen, fmt.Sprintf("Used        : %.2f", float64(info.Allocation / (1024 * 1024 * 1024))), x, y + (i*4) + 2, w, tview.AlignRight, tcell.ColorOrange)
-            // draw Bar
-            tview.Print(screen, Bar, x, y + (i*4) + 3, w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
+    // create usage bar
+    usageBar := ""
+    for i := 0; i < int(usage * float64(w)); i++ {
+        usageBar += "■"
+    }
+    // create bar
+    Bar := ""
+    for i := 0; i < w; i++{
+        Bar += "■"
+    }
 
-            color := setColorGradation(DISK_COLOR, int(usage * float64(w)))
-            for j := 0; j< int(usage * float64(w)); j++ {
-                tview.Print(screen, "■", x+j, y + (i*4) + 3, w, tview.AlignLeft,color[j])
-            }
+    tview.Print(screen, fmt.Sprintf("[orange]%s [whitesmoke]%d [orange]%s", string(leftTriangle), d.index, string(rightTraiangle)), x, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("File : %s",d.infos[d.index].Path), x+8, y + 1, w, tview.AlignLeft, tcell.ColorOrange)
+    tview.Print(screen, fmt.Sprintf("Volume size : %.2f", float64(d.infos[d.index].Capacity / (1024 * 1024 * 1024))), x, y + 1, w, tview.AlignRight, tcell.ColorGhostWhite)
+    tview.Print(screen, fmt.Sprintf("Used        : %.2f", float64(d.infos[d.index].Allocation / (1024 * 1024 * 1024))), x, y + 2, w, tview.AlignRight, tcell.ColorOrange)
+    // draw Bar
+    tview.Print(screen, Bar, x, y + 3, w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
 
-            //tview.Print(screen, usageBar, x, y + (i*4) + 3, w, tview.AlignLeft, tcell.ColorOrange)
-        }
-        h -= 4
+    color := setColorGradation(DISK_COLOR, int(usage * float64(w)))
+    for j := 0; j< int(usage * float64(w)); j++ {
+        tview.Print(screen, "■", x+j, y + 3, w, tview.AlignLeft,color[j])
     }
 }
+
+
+func (d *Disk)MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+    return d.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+        x, y := event.Position()
+		if !d.InRect(x, y) {
+			return false, nil
+		}
+        px, py, _, _ := d.GetInnerRect()
+        if action == tview.MouseLeftClick {
+            if y == py+1 {
+                if x == px {
+                    if 0 < d.index {
+                        d.index--
+                        consumed = true
+                    }
+                } else if x == px+4 {
+                    if d.index < len(d.infos)-1 {
+                        d.index++
+                        consumed = true
+                    }
+                }
+            }
+        }
+        return
+    })
+}
+
 
 // -------------------------- Network interface card ---------------------------
 func NewNIC(name, mac string) *NIC {
@@ -652,10 +673,9 @@ func NewVMStatus(app * tview.Application, dom *libvirt.Domain, name string) tvie
     vmstatus.AddItem(NewVMInfo(dom), 5, 1, false)
     flex.AddItem(cpu, 0, 1, false)
     flex.AddItem(mem, 0, 1, false)
-    //vmstatus.AddItem(cpu, 0, 1, false)
-    //vmstatus.AddItem(mem, 0, 1, false)
     vmstatus.AddItem(flex, 0, 1, false)
-    vmstatus.AddItem(disk, 2 + (4 * disk.GetInfoSize()), 1, false)
+    //vmstatus.AddItem(disk, 1 + (4 * disk.GetInfoSize()), 1, false)
+    vmstatus.AddItem(disk, 5, 1, false)
     vmstatus.AddItem(nic, 0, 1, false)
 
     go func() {

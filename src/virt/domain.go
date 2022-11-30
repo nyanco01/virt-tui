@@ -23,7 +23,11 @@ type VM struct {
     Status          bool
 }
 
-
+type TrafficByMAC struct {
+    MACAddr         string
+    TxBytes         int64
+    RxBytes         int64
+}
 
 type CreateVMRequest struct {
     DomainName      string
@@ -123,6 +127,32 @@ func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
     }
 
     return ifState.TxBytes, ifState.RxBytes
+}
+
+
+func GetTrafficByMAC(d *libvirt.Domain, mac string) (txByte, rxByte int64) {
+    ifState, err := d.InterfaceStats(mac)
+    if err != nil {
+        log.Fatalf("failed to get iface state: %v", err)
+    }
+
+    return ifState.TxBytes, ifState.RxBytes
+}
+
+
+func GetNICListMAC(d *libvirt.Domain) (mac []string) {
+    xml, err := d.GetXMLDesc(0)
+    if err != nil {
+        log.Fatalf("failed to open xml: %v", err)
+    }
+    var xmlDomain libvirtxml.Domain
+    xmlDomain.Unmarshal(xml)
+    for _, iface := range xmlDomain.Devices.Interfaces {
+        if iface.MAC != nil {
+            mac = append(mac, iface.MAC.Address)
+        }
+    }
+    return
 }
 
 

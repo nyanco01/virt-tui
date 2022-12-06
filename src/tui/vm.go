@@ -25,7 +25,7 @@ func pageModal(p tview.Primitive, width, height int) tview.Primitive {
 }
 
 
-func MakeOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
+func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
 
     btStart     := tview.NewButton("Start")
     btReboot    := tview.NewButton("Reboot")
@@ -123,7 +123,7 @@ func MakeOnOffModal(app *tview.Application, vm virt.VM, page *tview.Pages, list 
             page.RemovePage("OnOff")
             VirtualMachineStatus[vm.Name] = true
             page.RemovePage(vm.Name)
-            page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm.Domain, vm.Name), true)
+            page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)
             list.SetItemText(list.GetCurrentItem(), vm.Name, "")
             app.SetFocus(list)
         })
@@ -139,19 +139,28 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     list.SetShortcutColor(tcell.Color214)
 
     VirtualMachineStatus = map[string]bool{}
+    virt.VMStatus = map[string]*virt.VM{}
 
     vms := virt.LookupVMs(con)
     for i, vm := range vms {
         if vm.Status {
             list.AddItem(vm.Name, "", rune(i+'0'), nil)
-            page.AddPage(vm.Name, NewVMStatus(app, vm.Domain, vm.Name), true, true)
+            page.AddPage(vm.Name, NewVMStatus(app, vm), true, true)
             VirtualMachineStatus[vm.Name] = true
+            virt.VMStatus[vm.Name] = vm
+
         } else {
             list.AddItem(vm.Name, "shutdown", rune(i)+'0', nil)
             page.AddPage(vm.Name, NotUpVM(vm.Name), true, true)
             VirtualMachineStatus[vm.Name] = false
+            virt.VMStatus[vm.Name] = vm
         }
     }
+    /*
+    app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
+        
+    })
+    */
 
     // Displays the page corresponding to the selected item
     list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
@@ -161,7 +170,7 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     })
 
     list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-        var vmCrnt virt.VM
+        var vmCrnt *virt.VM
         vms = virt.LookupVMs(con)
         for _, vm := range vms {
             if vm.Name == s1 {

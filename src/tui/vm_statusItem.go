@@ -439,58 +439,38 @@ func (n *NIC)Draw(screen tcell.Screen) {
     if graphHeight < 0 {
         graphHeight = 0
     }
-    brailleGradient := float64(100) / float64(graphHeight * 4)
+    //brailleGradient := float64(100) / float64(graphHeight * 4)
 
     // Upload Bandwidth
     Uploadjudge = 0
     for i := 0; i < 5; i++ {
         Uploadjudge += n.ifList[n.index].bwUp[i]
     }
+    Uploadjudge = Uploadjudge / 3
+    if Uploadjudge <= 0 {
+        Uploadjudge = 1
+    }
 
-    if (Uploadjudge / 5) > int64(mega) {
-        for i := 0; i < w-30; i++ {
-            bandwidth := n.ifList[n.index].bwUp[i]
-            for j := 0; j <= graphHeight; j++ {
-                if bandwidth > int64(float64(mega) * 4 * brailleGradient) {
-                    n.bwGraphUp[j][i] = "⣿"
-                    bandwidth -= int64(float64(mega) * 4 * brailleGradient)
-                } else {
-                    a := int(bandwidth / int64(float64(mega) * brailleGradient))
-                    switch {
-                    case a == 0:
-                        n.bwGraphUp[j][i] = " "
-                    case a == 1:
-                        n.bwGraphUp[j][i] = "⣀"
-                    case a == 2:
-                        n.bwGraphUp[j][i] = "⣤"
-                    case a == 3:
-                        n.bwGraphUp[j][i] = "⣶"
-                    }
-                    bandwidth = 0
+
+    for i := 0; i < w-30; i++ {
+        bandwidth := n.ifList[n.index].bwUp[i]
+        for j := 0; j <= graphHeight; j++ {
+            if bandwidth > int64(float64(Uploadjudge) / float64(graphHeight)) {
+                n.bwGraphUp[j][i] = "⣿"
+                bandwidth -= int64(float64(Uploadjudge) / float64(graphHeight))
+            } else {
+                a := int(float64(bandwidth) / (float64(Uploadjudge) / float64(graphHeight*4)))
+                switch {
+                case a == 0:
+                    n.bwGraphUp[j][i] = " "
+                case a == 1:
+                    n.bwGraphUp[j][i] = "⣀"
+                case a == 2:
+                    n.bwGraphUp[j][i] = "⣤"
+                case a == 3:
+                    n.bwGraphUp[j][i] = "⣶"
                 }
-            }
-        }
-    } else {
-        for i := 0; i < w-30; i++ {
-            bandwidth := n.ifList[n.index].bwUp[i]
-            for j := 0; j <= graphHeight; j++ {
-                if bandwidth > int64(float64(kilo)*10 * 4 * brailleGradient) {
-                    n.bwGraphUp[j][i] = "⣿"
-                    bandwidth -= int64(float64(kilo) * 10 * 4 * brailleGradient)
-                } else {
-                    a := int(bandwidth / int64(float64(kilo) * 10 * brailleGradient))
-                    switch {
-                    case a == 0:
-                        n.bwGraphUp[j][i] = " "
-                    case a == 1:
-                        n.bwGraphUp[j][i] = "⣀"
-                    case a == 2:
-                        n.bwGraphUp[j][i] = "⣤"
-                    case a == 3:
-                        n.bwGraphUp[j][i] = "⣶"
-                    }
-                    bandwidth = 0
-                }
+                bandwidth = 0
             }
         }
     }
@@ -500,51 +480,30 @@ func (n *NIC)Draw(screen tcell.Screen) {
     for i := 0; i < 5; i++ {
         Downloadjudge += n.ifList[n.index].bwDown[i]
     }
+    Downloadjudge = Downloadjudge / 3
+    if Downloadjudge <= 0 {
+        Downloadjudge = 1
+    }
 
-    if (Downloadjudge / 5) > int64(mega) {
-        for i := 0; i < w-30; i++ {
-            bandwidth := n.ifList[n.index].bwDown[i]
-            for j := 0; j <= graphHeight; j++ {
-                if bandwidth > int64(float64(mega) * 4 * brailleGradient) {
-                    n.bwGraphDown[j][i] = "⣿"
-                    bandwidth -= int64(float64(mega) * 4 * brailleGradient)
-                } else {
-                    a := int(bandwidth / int64(float64(mega) * brailleGradient))
-                    switch {
-                    case a == 0:
-                        n.bwGraphDown[j][i] = " "
-                    case a == 1:
-                        n.bwGraphDown[j][i] = "⠉"
-                    case a == 2:
-                        n.bwGraphDown[j][i] = "⠛"
-                    case a == 3:
-                        n.bwGraphDown[j][i] = "⠿"
-                    }
-                    bandwidth = 0
+    for i := 0; i < w-30; i++ {
+        bandwidth := n.ifList[n.index].bwDown[i]
+        for j := 0; j <= graphHeight; j++ {
+            if bandwidth > int64(float64(Downloadjudge) / float64(graphHeight)) {
+                n.bwGraphDown[j][i] = "⣿"
+                bandwidth -= int64(float64(Downloadjudge) / float64(graphHeight))
+            } else {
+                a := int(float64(bandwidth) / (float64(Downloadjudge) / float64(graphHeight*4)))
+                switch {
+                case a == 0:
+                    n.bwGraphDown[j][i] = " "
+                case a == 1:
+                    n.bwGraphDown[j][i] = "⠉"
+                case a == 2:
+                    n.bwGraphDown[j][i] = "⠛"
+                case a == 3:
+                    n.bwGraphDown[j][i] = "⠿"
                 }
-            }
-        }
-    } else {
-        for i := 0; i < w-30; i++ {
-            bandwidth := n.ifList[n.index].bwDown[i]
-            for j := 0; j <= graphHeight; j++ {
-                if bandwidth > int64(float64(kilo)*10 * 4 * brailleGradient) {
-                    n.bwGraphDown[j][i] = "⣿"
-                    bandwidth -= int64(float64(kilo)*10 * 4 * brailleGradient)
-                } else {
-                    a := int(bandwidth / int64(float64(kilo)*10 * brailleGradient))
-                    switch {
-                    case a == 0:
-                        n.bwGraphDown[j][i] = " "
-                    case a == 1:
-                        n.bwGraphDown[j][i] = "⠉"
-                    case a == 2:
-                        n.bwGraphDown[j][i] = "⠛"
-                    case a == 3:
-                        n.bwGraphDown[j][i] = "⠿"
-                    }
-                    bandwidth = 0
-                }
+                bandwidth = 0
             }
         }
     }
@@ -619,16 +578,42 @@ func (n *NIC)Draw(screen tcell.Screen) {
     tview.Print(screen, constants.LeftDown, x, y+h-1, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
     tview.Print(screen, constants.RightDown, x, y+h-1, w, tview.AlignRight, tcell.NewRGBColor(20, 161, 156))
 
-    if (Uploadjudge / 5) > int64(mega) {
-        tview.Print(screen, "100 MB/s", x, y, w, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
-    } else {
-        tview.Print(screen, "  1 MB/s", x, y, w, tview.AlignLeft, tcell.NewRGBColor(31, 247, 255))
+    var upperLimitUp string
+    var limitUpDivSI int64
+    switch {
+    case Uploadjudge < int64(kilo):
+        upperLimitUp = "B"
+        limitUpDivSI = 1
+    case Uploadjudge < int64(mega):
+        upperLimitUp = "KB"
+        limitUpDivSI = int64(kilo)
+    case Uploadjudge < int64(giga):
+        upperLimitUp = "MB"
+        limitUpDivSI = int64(mega)
+    default:
+        upperLimitUp = "GB"
+        limitUpDivSI = int64(giga)
     }
-    if (Downloadjudge / 5) > int64(mega) {
-        tview.Print(screen, "100 MB/s", x, y+h-2, w, tview.AlignLeft, tcell.NewRGBColor(141, 232, 237))
-    } else {
-        tview.Print(screen, "  1 MB/s", x, y+h-2, w, tview.AlignLeft, tcell.NewRGBColor(141, 232, 237))
+    var upperLimitDown string
+    var limitDownDivSI int64
+    switch {
+    case Downloadjudge < int64(kilo):
+        upperLimitDown = "B"
+        limitDownDivSI = 1
+    case Downloadjudge < int64(mega):
+        upperLimitDown = "KB"
+        limitDownDivSI = int64(kilo)
+    case Downloadjudge < int64(giga):
+        upperLimitDown = "MB"
+        limitDownDivSI = int64(mega)
+    default:
+        upperLimitDown = "GB"
+        limitDownDivSI = int64(giga)
     }
+    var u float64 = float64(Uploadjudge) / float64(limitUpDivSI)
+    var d float64 = float64(Downloadjudge) / float64(limitDownDivSI)
+    tview.Print(screen, fmt.Sprintf("%.1f %s", u, upperLimitUp), x, y, w, tview.AlignLeft, tcell.NewRGBColor(20, 161, 156))
+    tview.Print(screen, fmt.Sprintf("%.1f %s", d, upperLimitDown), x, y+h-2, w, tview.AlignLeft, tcell.NewRGBColor(141, 232, 237))
 }
 
 
@@ -712,28 +697,28 @@ func (n *NIC)Update(dom *libvirt.Domain) {
 }
 
 
-func NewVMStatus(app * tview.Application, dom *libvirt.Domain, name string) tview.Primitive{
+func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
     flex := tview.NewFlex()
     flex.SetBorder(false)
     vmstatus := tview.NewFlex().SetDirection(tview.FlexRow)
 
-    domInfo, err := dom.GetInfo()
+    domInfo, err := vm.Domain.GetInfo()
     if err != nil {
         log.Fatalf("failed to get domain info: %v", err)
     }
     cpu := NewCPU(domInfo.NrVirtCpu)
     mem := NewMemory()
     disk := NewDisk()
-    infos := virt.GetDisks(dom)
+    infos := virt.GetDisks(vm.Domain)
     for _, info := range infos {
         disk.AddInfo(info)
     }
     nic := NewNIC()
-    for _, mac := range virt.GetNICListMAC(dom) {
+    for _, mac := range virt.GetNICListMAC(vm.Domain) {
         nic.AddIF(mac)
     }
 
-    vmstatus.AddItem(NewVMInfo(dom), 5, 1, false)
+    vmstatus.AddItem(NewVMInfo(vm.Domain), 5, 1, false)
     flex.AddItem(cpu, 0, 1, false)
     flex.AddItem(mem, 0, 1, false)
     vmstatus.AddItem(flex, 0, 1, false)
@@ -741,35 +726,37 @@ func NewVMStatus(app * tview.Application, dom *libvirt.Domain, name string) tvie
     vmstatus.AddItem(nic, 0, 1, false)
 
     go func() {
-        VMStatusUpdate(app, dom, cpu, mem, nic, name)
+        VMStatusUpdate(app, cpu, mem, nic, vm)
     }()
 
     return vmstatus
 }
 
 
-func VMStatusUpdate(app *tview.Application, d *libvirt.Domain, cpu *CPU, mem *Mem, nic *NIC, name string) {
+func VMStatusUpdate(app *tview.Application, cpu *CPU, mem *Mem, nic *NIC, vm *virt.VM) {
     sec := time.Second
 
-    oldUsage, _ := virt.GetCPUUsage(d)  // cpu
+    oldUsage, _ := virt.GetCPUUsage(vm.Domain)  // cpu
 
-    timeCnt := 0
+    var timeCnt uint64 = 0
     for range time.Tick(sec) {
-        b, _ := d.IsActive()
+        b, _ := vm.Domain.IsActive()
         if b && (timeCnt > 3) {
-            newUsage, cnt := virt.GetCPUUsage(d)  // cpu
+            newUsage, cnt := virt.GetCPUUsage(vm.Domain)  // cpu
 
-            max, used := virt.GetMemUsed(d)  // memory
+            max, used := virt.GetMemUsed(vm.Domain)  // memory
             app.QueueUpdateDraw(func() {
                 cpu.Update(float64((newUsage - oldUsage) / (uint64(cnt) * 10000000)))  // cpu
                 mem.Update(max, used)
-                nic.Update(d)
+                nic.Update(vm.Domain)
             })
 
             oldUsage = newUsage  //cpu
+        } else {
+            vm.Status = false
         }
         timeCnt++
-        if !VirtualMachineStatus[name] {
+        if !VirtualMachineStatus[vm.Name] {
             break
         }
     }

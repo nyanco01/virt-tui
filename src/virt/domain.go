@@ -10,6 +10,7 @@ import (
     libvirtxml "libvirt.org/go/libvirtxml"
 )
 
+var VMStatus        map [string]*VM
 
 type PoolInfos struct {
     Name        []string
@@ -206,8 +207,8 @@ func GetNICInfo(d *libvirt.Domain) (name, MAC string) {
 }
 
 
-func LookupVMs(c *libvirt.Connect) []VM {
-    vms := []VM{}
+func LookupVMs(c *libvirt.Connect) []*VM {
+    vms := []*VM{}
     domActive, err := c.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)
     domInactive, err := c.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
     if err != nil {
@@ -220,7 +221,7 @@ func LookupVMs(c *libvirt.Connect) []VM {
             log.Fatalf("failed to get domain name: %v", err)
         }
         tmpDomain := d
-        vms = append(vms, VM{Domain: &tmpDomain,Name: n, Status: true})
+        vms = append(vms, &VM{Domain: &tmpDomain,Name: n, Status: true})
     }
     for _, d := range domInactive {
         n, err := d.GetName()
@@ -229,7 +230,7 @@ func LookupVMs(c *libvirt.Connect) []VM {
         }
         tmpDomain := d
         vm := VM{Domain: &tmpDomain,Name: n, Status: false}
-        vms = append(vms, vm)
+        vms = append(vms, &vm)
     }
     return vms
 }
@@ -246,7 +247,7 @@ func GetNodeMax(c *libvirt.Connect) (maxCPU int, maxMem uint64) {
 }
 
 // Make a list of the VNC ports you are using from the list of VMs
-func GetUsedResources(vms []VM) (name []string, vnc []int) {
+func GetUsedResources(vms []*VM) (name []string, vnc []int) {
     var domainXml libvirtxml.Domain
     for _, vm := range vms {
         xml, _ := vm.Domain.GetXMLDesc(0)

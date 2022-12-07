@@ -5,9 +5,16 @@ import (
 	"sort"
 	"time"
 
+	"github.com/nyanco01/virt-tui/src/constants"
 	"github.com/nyanco01/virt-tui/src/operate"
 	libvirt "libvirt.org/go/libvirt"
-    libvirtxml "libvirt.org/go/libvirtxml"
+	libvirtxml "libvirt.org/go/libvirtxml"
+)
+
+const (
+    cpuaffi         = constants.CPUAffinity
+    domnotrunning   = constants.DomainNotRunning
+    readmonitor     = constants.UnableReadMonitor
 )
 
 var VMStatus        map [string]*VM
@@ -67,8 +74,15 @@ func butVMItemCheck(item string) string {
 
 func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
     cpuGuest, err := d.GetVcpus()
+    //var errCPUaffi error = errors.New("")
     if err != nil {
-        log.Fatalf("failed to get cpu status: %v", err)
+        if virtErr, ok := err.(libvirt.Error); ok {
+            if virtErr.Message == cpuaffi {
+                return 1, 1
+            } else {
+                log.Fatalf("failed to get cpu status: %v", err)
+            }
+        }
     }
     var all uint64
     all = 0
@@ -85,7 +99,15 @@ func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
 func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
     domMemStatus, err := d.MemoryStats(13, 0)
     if err != nil {
-        log.Fatalf("failed to get memory: %v", err)
+        if virtErr, ok := err.(libvirt.Error); ok {
+            if virtErr.Message == domnotrunning || virtErr.Message == readmonitor {
+                max = 1000
+                used = 100
+                return
+            } else {
+                log.Fatalf("failed to get memory: %v", err)
+            }
+        }
     }
 
     memStatus := make(map[int]uint64)
@@ -134,7 +156,15 @@ func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
 func GetTrafficByMAC(d *libvirt.Domain, mac string) (txByte, rxByte int64) {
     ifState, err := d.InterfaceStats(mac)
     if err != nil {
-        log.Fatalf("failed to get iface state: %v", err)
+        if virtErr, ok := err.(libvirt.Error); ok {
+            if virtErr.Message == domnotrunning {
+                txByte = 10000
+                rxByte = 10000
+                return
+            } else {
+                log.Fatalf("failed to get iface state: %v", err)
+            }
+        }
     }
 
     return ifState.TxBytes, ifState.RxBytes
@@ -374,7 +404,13 @@ func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64,
     c <- 100.0
     status <- "Complete !"
     time.Sleep(time.Second)
-    dom.Free()
+    var vm *VM = &VM{
+        Name:   request.DomainName,
+        Domain: dom,
+        Status: false,
+    }
+    VMStatus[request.DomainName] = vm
+    //dom.Free()
     done <- 1
 }
 

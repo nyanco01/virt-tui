@@ -95,10 +95,14 @@ func NewVMInfo(dom *libvirt.Domain) *tview.Box {
     if err != nil {
         log.Fatalf("failed to get domain name: %v", err)
     }
-    id, err := dom.GetID()
-    if err != nil {
-        log.Fatalf("failed to get domain id: %v", err)
+    var id uint = 0
+    if b, _ := dom.IsActive(); b{
+    id, err = dom.GetID()
+        if err != nil {
+            log.Fatalf("failed to get domain id: %v", err)
+        }
     }
+
     uuid, err := dom.GetUUIDString()
     if err != nil {
         log.Fatalf("failed to get domain uuid: %v", err)
@@ -725,23 +729,51 @@ func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
     vmstatus.AddItem(disk, 5, 1, false)
     vmstatus.AddItem(nic, 0, 1, false)
 
+
     go func() {
-        VMStatusUpdate(app, cpu, mem, nic, vm)
+        VMStatusUpdate(app, vmstatus, cpu, mem, nic, vm)
     }()
 
     return vmstatus
 }
 
 
-func VMStatusUpdate(app *tview.Application, cpu *CPU, mem *Mem, nic *NIC, vm *virt.VM) {
+func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem, nic *NIC, vm *virt.VM) {
     sec := time.Second
 
-    oldUsage, _ := virt.GetCPUUsage(vm.Domain)  // cpu
+    time.Sleep(sec)
+    if b, _ := vm.Domain.IsActive(); !b {
+        if flex.GetItemCount() == 4 {
+            flex.Clear()
+            flex.AddItem(NotUpVM(vm.Name), 0, 1, false)
+        }
+    }
 
     var timeCnt uint64 = 0
     for range time.Tick(sec) {
+        if timeCnt >= 3 {
+            break
+        }
+        timeCnt++
+    }
+
+    var oldUsage uint64
+    if b, _ := vm.Domain.IsActive(); b {
+        oldUsage, _ = virt.GetCPUUsage(vm.Domain)  // cpu
+    }
+
+    for range time.Tick(sec) {
+        //timeCnt++
         b, _ := vm.Domain.IsActive()
-        if b && (timeCnt > 3) {
+        if b {
+            if !vm.Status {
+                vm.Status = true
+            }
+            /*
+            if timeCnt < 4 {
+                continue
+            }
+            */
             newUsage, cnt := virt.GetCPUUsage(vm.Domain)  // cpu
 
             max, used := virt.GetMemUsed(vm.Domain)  // memory
@@ -754,8 +786,11 @@ func VMStatusUpdate(app *tview.Application, cpu *CPU, mem *Mem, nic *NIC, vm *vi
             oldUsage = newUsage  //cpu
         } else {
             vm.Status = false
+            if flex.GetItemCount() == 4 {
+                flex.Clear()
+                flex.AddItem(NotUpVM(vm.Name), 0, 1, false)
+            }
         }
-        timeCnt++
         if !VirtualMachineStatus[vm.Name] {
             break
         }

@@ -87,19 +87,15 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         btShutdown.SetSelectedFunc(func() {
             _ = vm.Domain.Shutdown()
             time.Sleep(time.Millisecond * 500)
-            page.RemovePage(vm.Name)
-            page.AddAndSwitchToPage(vm.Name, NotUpVM(vm.Name), true)
-            VirtualMachineStatus[vm.Name] = false
-            list.SetItemText(list.GetCurrentItem(), vm.Name, "shutdown")
+            page.RemovePage("OnOff")
+            vm.Status = false
             app.SetFocus(list)
         })
         btDestroy.SetSelectedFunc(func() {
             _ = vm.Domain.Destroy()
             time.Sleep(time.Millisecond * 500)
-            page.RemovePage(vm.Name)
-            page.AddAndSwitchToPage(vm.Name, NotUpVM(vm.Name), true)
-            VirtualMachineStatus[vm.Name] = false
-            list.SetItemText(list.GetCurrentItem(), vm.Name, "shutdown")
+            page.RemovePage("OnOff")
+            vm.Status = false
             app.SetFocus(list)
         })
 
@@ -121,7 +117,7 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
                 }
             }
             page.RemovePage("OnOff")
-            VirtualMachineStatus[vm.Name] = true
+            vm.Status = true
             page.RemovePage(vm.Name)
             page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)
             list.SetItemText(list.GetCurrentItem(), vm.Name, "")
@@ -148,19 +144,31 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
             page.AddPage(vm.Name, NewVMStatus(app, vm), true, true)
             VirtualMachineStatus[vm.Name] = true
             virt.VMStatus[vm.Name] = vm
-
         } else {
-            list.AddItem(vm.Name, "shutdown", rune(i)+'0', nil)
-            page.AddPage(vm.Name, NotUpVM(vm.Name), true, true)
+            list.AddItem(vm.Name, "", rune(i)+'0', nil)
+            page.AddPage(vm.Name, NewVMStatus(app, vm), true, true)
             VirtualMachineStatus[vm.Name] = false
             virt.VMStatus[vm.Name] = vm
         }
     }
-    /*
     app.SetBeforeDrawFunc(func(screen tcell.Screen) bool {
-        
+        for i := 0; i < list.GetItemCount(); i++ {
+            main, second := list.GetItemText(i)
+            if _, ok := virt.VMStatus[main]; !ok {
+                return true
+            }
+            if !virt.VMStatus[main].Status {
+                if second == "" {
+                    list.SetItemText(i, main, "shutdown")
+                }
+            } else {
+                if second == "shutdown" {
+                    list.SetItemText(i, main, "")
+                }
+            }
+        }
+        return false
     })
-    */
 
     // Displays the page corresponding to the selected item
     list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
@@ -170,13 +178,15 @@ func MakeVMMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages)
     })
 
     list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-        var vmCrnt *virt.VM
+        var vmCrnt *virt.VM = virt.VMStatus[s1]
+        /*
         vms = virt.LookupVMs(con)
         for _, vm := range vms {
             if vm.Name == s1 {
                 vmCrnt = vm
             }
         }
+        */
         modal := MakeOnOffModal(app, vmCrnt, page, list)
         if page.HasPage("OnOff") {
             page.RemovePage("OnOff")

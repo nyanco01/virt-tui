@@ -25,3 +25,10 @@ const (
     UpTraiangle     rune = 'ᐃ'
     DownTraiangle   rune = 'ᐁ'
 )
+
+const (
+    CPUAffinity         string = "Requested operation is not valid: cpu affinity is not supported"
+    AlreadyStarted      string = "Requested operation is not valid: domain is already running"
+    DomainNotRunning    string = "Requested operation is not valid: domain is not running"
+    UnableReadMonitor   string = "Unable to read from monitor: Connection reset by peer"
+)

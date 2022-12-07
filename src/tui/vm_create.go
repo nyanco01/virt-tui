@@ -249,16 +249,10 @@ func MakeVMCreate(app *tview.Application, con *libvirt.Connect, page *tview.Page
 
 func doneCreate(name string, con *libvirt.Connect, list *tview.List, page *tview.Pages, app *tview.Application, done chan int) {
     <-done
-    /*
-    vm, err := con.LookupDomainByName(name)
-    if err != nil {
-        log.Fatalf("failed to get domain: %v", err)
-    }
-    defer vm.Free()
-    */
+
     list.AddItem(name, "shutdown", rune(list.GetItemCount())+'0', nil)
     list.SetCurrentItem(list.GetItemCount())
-    page.AddPage(name, NotUpVM(name), true, true)
+    page.AddPage(name, NewVMStatus(app, virt.VMStatus[name]), true, true)
     app.SetFocus(list)
     page.RemovePage("Create")
     app.Draw()

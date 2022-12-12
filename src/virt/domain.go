@@ -491,3 +491,76 @@ func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
         log.Fatalf("failed to attach network interface: %v\n", err)
     }
 }
+
+
+func StartDomain(dom *libvirt.Domain) {
+    err := dom.Create()
+    if err != nil {
+        log.Fatalf("failed to start domain: %v", err)
+    }
+    dur := time.Millisecond * 200
+    for range time.Tick(dur) {
+        b, _ := dom.IsActive()
+        if b {
+            break
+        }
+    }
+}
+
+
+func DeleteDomain(dom *libvirt.Domain) {
+    err := dom.Undefine()
+    if err != nil {
+        log.Fatalf("failed to Delete Domain: %v", err)
+    }
+}
+
+/*
+func GetDomainItems(dom * libvirt.Domain) []tui.EditItem {
+    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get xml: %v", err)
+    }
+    var domXML libvirtxml.Domain
+    domXML.Unmarshal(xml)
+    var items []tui.EditItem
+    for _, disk := range domXML.Devices.Disks {
+        p := ""
+        if disk.Source != nil {
+            p = disk.Source.File.File
+        }
+        items = append(items, tui.ItemDisk{
+            Path:       p,
+            Device:     disk.Device,
+            ImgType:    disk.Driver.Type,
+            Bus:        disk.Target.Bus,
+        })
+    }
+    for _, cntl := range domXML.Devices.Controllers {
+        items = append(items, tui.ItemController{
+            ControllerType:     cntl.Type,
+            Model:              cntl.Model,
+        })
+    }
+    for _, iface := range domXML.Devices.Interfaces {
+        d := ""
+        s := ""
+        t := ""
+        if iface.Driver != nil {
+            d = iface.Driver.Name
+            t = "hostdev"
+        }
+        if iface.Source != nil {
+            s = iface.Source.Bridge.Bridge
+            t = "bridge"
+        }
+        items = append(items, tui.ItemInterface{
+            IfType:     t,
+            Driver:     d,
+            Source:     s,
+            Model:      iface.Model.Type,
+        })
+    }
+    return items
+}
+*/

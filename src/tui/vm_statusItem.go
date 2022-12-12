@@ -791,8 +791,10 @@ func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem
                 flex.AddItem(NotUpVM(vm.Name), 0, 1, false)
             }
         }
+        /*
         if !VirtualMachineStatus[vm.Name] {
             break
         }
+        */
     }
 }

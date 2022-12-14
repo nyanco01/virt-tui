@@ -34,14 +34,6 @@ func SetButtonDefaultStyle(bt *tview.Button, color tcell.Color) *tview.Button {
         for i := y; i < y+height; i++ {
             screen.SetContent(x, i, '▐', nil, tcell.StyleDefault.Foreground(color))
         }
-        /*
-        if bt.HasFocus() {
-            x, y, _, h := bt.GetInnerRect()
-            for i := y; i <= y+h; i++ {
-                screen.SetContent(x, i, ' ', nil, tcell.StyleDefault.Background(color))
-            }
-        }
-        */
         return x, y, width, height
     })
 
@@ -154,7 +146,7 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         })
         btEdit.SetSelectedFunc(func() {
             page.RemovePage("OnOff")
-            page.AddAndSwitchToPage("Edit", NewVMEditMenu(app, vm, list, page), true)
+            page.AddAndSwitchToPage("Edit", MakeVMEditMenu(app, vm, list, page), true)
             app.SetFocus(page)
         })
     }

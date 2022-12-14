@@ -31,12 +31,6 @@ type VM struct {
     Status          bool
 }
 
-type TrafficByMAC struct {
-    MACAddr         string
-    TxBytes         int64
-    RxBytes         int64
-}
-
 type CreateVMRequest struct {
     DomainName      string
     CPUNum          int
@@ -486,7 +480,7 @@ func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
     if err != nil {
         log.Fatalf("failed to marshal xml: %v", err)
     }
-    err = d.AttachDeviceFlags(xml, 2)
+    err = d.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
     if err != nil {
         log.Fatalf("failed to attach network interface: %v\n", err)
     }
@@ -515,52 +509,4 @@ func DeleteDomain(dom *libvirt.Domain) {
     }
 }
 
-/*
-func GetDomainItems(dom * libvirt.Domain) []tui.EditItem {
-    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
-    if err != nil {
-        log.Fatalf("failed to get xml: %v", err)
-    }
-    var domXML libvirtxml.Domain
-    domXML.Unmarshal(xml)
-    var items []tui.EditItem
-    for _, disk := range domXML.Devices.Disks {
-        p := ""
-        if disk.Source != nil {
-            p = disk.Source.File.File
-        }
-        items = append(items, tui.ItemDisk{
-            Path:       p,
-            Device:     disk.Device,
-            ImgType:    disk.Driver.Type,
-            Bus:        disk.Target.Bus,
-        })
-    }
-    for _, cntl := range domXML.Devices.Controllers {
-        items = append(items, tui.ItemController{
-            ControllerType:     cntl.Type,
-            Model:              cntl.Model,
-        })
-    }
-    for _, iface := range domXML.Devices.Interfaces {
-        d := ""
-        s := ""
-        t := ""
-        if iface.Driver != nil {
-            d = iface.Driver.Name
-            t = "hostdev"
-        }
-        if iface.Source != nil {
-            s = iface.Source.Bridge.Bridge
-            t = "bridge"
-        }
-        items = append(items, tui.ItemInterface{
-            IfType:     t,
-            Driver:     d,
-            Source:     s,
-            Model:      iface.Model.Type,
-        })
-    }
-    return items
-}
-*/
+

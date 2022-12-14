@@ -1,4 +1,4 @@
-package tui
+package virt
 
 type EditItem interface {
     GetItemType() string

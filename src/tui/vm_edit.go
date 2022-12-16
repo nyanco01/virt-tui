@@ -271,11 +271,98 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
                     e.addIfaceFunc()
                     consumed = true
                 }
+            } else if x <= px+(w/2) && py+1 == y {
+                if e.addDiskFunc != nil {
+                    e.addDiskFunc()
+                    consumed = true
+                }
             }
         }
         return
     })
 }
+
+
+func MakeAddDiskMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit) tview.Primitive {
+    flex := tview.NewFlex()
+    flex.SetBorder(true).SetTitle("Add Disk Menu")
+    view := tview.NewTextView()
+    view.SetTextAlign(tview.AlignCenter)
+    form := tview.NewForm()
+    con, err := vm.Domain.DomainGetConnect()
+    if err != nil {
+        if virtErr, ok := err.(libvirt.Error); ok {
+            view.SetText(virtErr.Message)
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            log.Fatalf("failed to get connect for %s: %v", vm.Name, err)
+        }
+    }
+    pools, err := virt.GetPoolNameList(con)
+    if err != nil {
+        if virtErr, ok := err.(libvirt.Error); ok {
+            view.SetText(virtErr.Message)
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            log.Fatalf("failed to get pool name: %v", err)
+        }
+    }
+
+    ddVols := tview.NewDropDown().SetLabel("Disk Name")
+
+    ddPools := tview.NewDropDown().SetLabel("Pool Name")
+    ddPools.SetOptions(pools, func(text string, index int) {
+        disks := virt.GetNonAttachDiskByPool(con, text)
+        if len(disks) == 0 {
+            disks = append(disks, "No Items")
+        }
+        ddVols.SetOptions(disks, nil)
+    })
+    if len(pools) != 0 {
+        ddPools.SetCurrentOption(0)
+    }
+    form.AddFormItem(ddPools)
+    form.AddFormItem(ddVols)
+
+    form.AddButton("Add", func() {
+        _, diskPath := ddVols.GetCurrentOption()
+        if diskPath == "" || diskPath == "No Items" {
+            view.SetText("Disk is not selected")
+            view.SetTextColor(tcell.ColorOrange.TrueColor())
+        } else {
+            if operate.CheckIsDisk(diskPath) {
+                err = virt.CreateAddDisk(vm.Domain, diskPath)
+                if err != nil {
+                    if virtErr, ok := err.(libvirt.Error); ok {
+                        view.SetText(virtErr.Message)
+                        view.SetTextColor(tcell.ColorRed)
+                    } else {
+                        log.Fatalf("failed to add Disk by %s: %v", vm.Name, err)
+                    }
+                } else {
+                    edit.ClearItems()
+                    edit.SetItemList()
+                    page.SwitchToPage("Edit")
+                    page.RemovePage("AddDiskMenu")
+                }
+            } else {
+                view.SetText("The selected file is not a disk format.")
+                view.SetTextColor(tcell.ColorRed.TrueColor())
+            }
+        }
+    })
+    form.AddButton("Cancel", func() {
+        page.SwitchToPage("Edit")
+        page.RemovePage("AddDiskMenu")
+    })
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(form, 0, 1, true).
+        AddItem(view, 2, 0, false)
+    
+    return pageModal(flex, 60, 11)
+}
+
 
 func MakeAddIfaceMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit) tview.Primitive {
     flex := tview.NewFlex()
@@ -285,7 +372,7 @@ func MakeAddIfaceMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, ed
     form := tview.NewForm()
 
     form.AddDropDown("Network bridge interface", operate.ListBridgeIF(), 0, nil)
-    form.AddButton("Create", func() {
+    form.AddButton("Add", func() {
         _, iface := form.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
         err := virt.CreateAddNIC(vm.Domain, iface)
         if err != nil {
@@ -307,9 +394,9 @@ func MakeAddIfaceMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, ed
         page.RemovePage("AddIfaceMenu")
     })
 
-    flex.
+    flex.SetDirection(tview.FlexRow).
         AddItem(form, 0, 1, true).
-        AddItem(view, 1, 0, false)
+        AddItem(view, 2, 0, false)
 
     return pageModal(flex, 40, 10)
 }
@@ -320,6 +407,12 @@ func SetAddFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VM
         modal := MakeAddIfaceMenu(app, vm, page, edit)
         page.AddPage("AddIfaceMenu", modal, true, true)
         page.ShowPage("AddIfaceMenu")
+        app.SetFocus(modal)
+    })
+    edit.SetAddDiskFunc(func() {
+        modal := MakeAddDiskMenu(app, vm, page, edit)
+        page.AddPage("AddDiskMenu", modal, true, true)
+        page.ShowPage("AddDiskMenu")
         app.SetFocus(modal)
     })
 }

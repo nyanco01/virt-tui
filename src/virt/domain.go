@@ -473,7 +473,7 @@ func CreateVolXML(path, name string, resize int) string {
 
 func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
     var nicXML libvirtxml.DomainInterface
-    nicXML.Unmarshal(operate.FileRead("./data/xml/domif/br.xml"))
+    nicXML.Unmarshal(operate.FileRead("./data/xml/dom_items/br.xml"))
     nicXML.Source.Bridge.Bridge = ifName
     nicXML.MAC.Address = operate.NewBridgeMAC(ifName)
     xml, err := nicXML.Marshal()

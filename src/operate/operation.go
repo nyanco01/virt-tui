@@ -490,3 +490,12 @@ func CreateIPsBySubnet(subnet string) (firstIP, secondIP, lastIP string) {
     }
     return
 }
+
+
+func CheckIsDisk(source string) bool {
+    err := exec.Command("qemu-img", "check", "-f", "qcow2", source).Run()
+    if err != nil {
+        return false
+    }
+    return true
+}

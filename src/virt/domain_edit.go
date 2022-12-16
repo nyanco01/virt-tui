@@ -259,7 +259,7 @@ func CreateAddNIC(dom *libvirt.Domain, source string) error {
         return err
     }
     var nicXML libvirtxml.DomainInterface
-    nicXML.Unmarshal(operate.FileRead("./data/xml/domif/br.xml"))
+    nicXML.Unmarshal(operate.FileRead("./data/xml/dom_items/br.xml"))
     nicXML.Source.Bridge.Bridge = source
     nicXML.MAC.Address = operate.NewBridgeMAC(source)
     for {
@@ -283,5 +283,103 @@ func CreateAddNIC(dom *libvirt.Domain, source string) error {
     if err != nil {
         return err
     }
+    return nil
+}
+
+
+func GetPoolNameList(con *libvirt.Connect) (pNames []string, err error) {
+    pools, err := con.ListAllStoragePools(0)
+    if err != nil {
+        return nil, err
+    }
+    for _, p := range pools {
+        n, err := p.GetName()
+        if err != nil {
+            return nil, err
+        }
+        pNames = append(pNames, n)
+    }
+    return
+}
+
+
+func GetNonAttachDiskByPool(con *libvirt.Connect, name string) []string {
+    infos := GetDisksByPool(con, name)
+    disks := []string{}
+    for _, info := range infos {
+        n := GetBelongVM(con, info.Path)
+        if n == "none" {
+            disks = append(disks, info.Path)
+        }
+    }
+    return disks
+}
+
+
+func GetDiskNameList(dom *libvirt.Domain) (names []string, err error) {
+    var domXML libvirtxml.Domain
+    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        return nil, err
+    }
+    domXML.Unmarshal(xml)
+    disks := domXML.Devices.Disks
+    for _, disk := range disks {
+        if disk.Target != nil {
+            names = append(names, disk.Target.Dev)
+        }
+    }
+    return
+}
+
+
+func CreateAddDisk(dom *libvirt.Domain, source string) error {
+    pcis, err := GetItemPCIAddress(dom)
+    if err != nil {
+        return err
+    }
+    var diskXML libvirtxml.DomainDisk
+    diskXML.Unmarshal(operate.FileRead("./data/xml/dom_items/qcow2.xml"))
+    diskXML.Source.File.File = source
+    for {
+        b := true
+        for _, pci := range pcis {
+            if *diskXML.Address.PCI.Bus == pci.bus {
+                tmp := uint(1) + *diskXML.Address.PCI.Bus
+                diskXML.Address.PCI.Bus = &tmp
+                b = false
+            }
+        }
+        if b {
+            break
+        }
+    }
+    names, err := GetDiskNameList(dom)
+    cnt := 0
+    var n string = "vd" + string(rune('a' + cnt))
+    for {
+        b := true
+        n = "vd" + string(rune('a' + cnt))
+        for _, name := range names {
+            if n == name {
+                b = false
+                break
+            }
+        }
+        cnt++
+        if b {
+            break
+        }
+    }
+    diskXML.Target.Dev = n
+    disk, err := diskXML.Marshal()
+    if err != nil {
+        return err
+    }
+    err = dom.AttachDeviceFlags(disk, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
+    if err != nil {
+        return err
+    }
+
     return nil
 }

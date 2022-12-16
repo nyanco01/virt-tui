@@ -146,6 +146,9 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         })
         btEdit.SetSelectedFunc(func() {
             page.RemovePage("OnOff")
+            if page.HasPage("Edit") {
+                page.RemovePage("Edit")
+            }
             page.AddAndSwitchToPage("Edit", MakeVMEditMenu(app, vm, list, page), true)
             app.SetFocus(page)
         })

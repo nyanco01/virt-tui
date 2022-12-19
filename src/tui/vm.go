@@ -50,7 +50,6 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
     btEdit      := tview.NewButton("Edit")
     btDelete    := tview.NewButton("Delete")
     btQuit      := tview.NewButton("Quit")
-    btReboot = SetButtonDefaultStyle(btReboot, tcell.ColorDarkSlateGray)
     btQuit = SetButtonDefaultStyle(btQuit, tcell.Color80)
 
     btQuit.SetSelectedFunc(func() {
@@ -104,6 +103,7 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         // Enable button
         btShutdown = SetButtonDefaultStyle(btShutdown, tcell.ColorOrangeRed)
         btDestroy = SetButtonDefaultStyle(btDestroy, tcell.ColorRed)
+        btReboot = SetButtonDefaultStyle(btReboot, tcell.Color56.TrueColor())
 
         btShutdown.SetSelectedFunc(func() {
             _ = vm.Domain.Shutdown()
@@ -119,6 +119,12 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             vm.Status = false
             app.SetFocus(list)
         })
+        btReboot.SetSelectedFunc(func() {
+            _ = vm.Domain.Reboot(libvirt.DOMAIN_REBOOT_ACPI_POWER_BTN)
+            time.Sleep(time.Second)
+            page.RemovePage("OnOff")
+            app.SetFocus(list)
+        })
 
     } else {
         // Enable button
@@ -128,6 +134,7 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         // Disable button
         btShutdown = SetButtonDefaultStyle(btShutdown, tcell.ColorDarkSlateGray)
         btDestroy = SetButtonDefaultStyle(btDestroy, tcell.ColorDarkSlateGray)
+        btReboot = SetButtonDefaultStyle(btReboot, tcell.ColorDarkSlateGray)
 
         btStart.SetSelectedFunc(func() {
             virt.StartDomain(vm.Domain)

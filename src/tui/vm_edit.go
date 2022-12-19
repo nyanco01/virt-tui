@@ -380,11 +380,80 @@ func SetItemCPUFunc(app *tview.Application, dom *libvirt.Domain, page *tview.Pag
 }
 
 
+func MakeItemMemoryEditMenu(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) tview.Primitive {
+    flex := tview.NewFlex()
+    flex.SetBorder(true).SetTitle("CPU Edit")
+    view := tview.NewTextView()
+    view.SetTextAlign(tview.AlignCenter)
+    form := tview.NewForm()
+    con, err := dom.DomainGetConnect()
+    memSize, err := virt.GetCurrentMemSize(dom)
+    if err != nil {
+        if virtErr, ok := err.(libvirt.Error); ok {
+            view.SetText(virtErr.Message)
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            log.Fatalf("failed to get connect: %v", err)
+        }
+    }
+    _, maxMem := virt.GetNodeMax(con)
+    form.AddInputField(fmt.Sprintf("Memory Size [orange](max. %d KB)", maxMem), strconv.Itoa(int(memSize)), 15, InputFieldPositiveInteger, nil)
+    form.AddButton("OK", func() {
+        mem := form.GetFormItem(0).(*tview.InputField).GetText()
+        m, _ := strconv.Atoi(mem)
+        if mem == "" {
+            view.SetText("A blank character has been entered.")
+            view.SetTextColor(tcell.ColorRed)
+        } else if uint64(m) > maxMem {
+            view.SetText("The maximum memory capacity of the host machine has been exceeded.")
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            err = virt.DomainEditMemory(dom, uint(m))
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to edit memory : %v", err)
+                }
+            } else {
+                edit.ClearItems()
+                edit.SetItemList()
+                page.SwitchToPage("Edit")
+                page.RemovePage("Item CPU")
+            }
+        }
+    })
+    form.AddButton("Cancel", func() {
+        page.SwitchToPage("Edit")
+        page.RemovePage("Item Memory")
+    })
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(form, 0, 1, true).
+        AddItem(view, 2, 0, false)
+
+    return pageModal(flex, 60, 10)
+}
+
+
+func SetItemMemFunc(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) func() {
+    return func() {
+        modal := MakeItemMemoryEditMenu(app, dom, page, edit)
+        page.AddPage("Item Memory", modal, true, true)
+        page.ShowPage("Item Memory")
+        app.SetFocus(modal)
+    }
+}
+
+
 func (e *VMEdit)SetItemsFunc(app *tview.Application, vm *virt.VM, page *tview.Pages) *VMEdit {
     for _, item := range e.items {
         switch v := item.(type) {
         case *virt.ItemCPU:
             v.SetSelectedFunc(SetItemCPUFunc(app, vm.Domain, page, e))
+        case *virt.ItemMemory:
+            v.SetSelectedFunc(SetItemMemFunc(app, vm.Domain, page, e))
         }
     }
     return e

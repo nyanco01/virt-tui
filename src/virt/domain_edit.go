@@ -420,3 +420,43 @@ func DomainEditCPU(dom *libvirt.Domain, cpuNum uint) error {
 
     return nil
 }
+
+
+func GetCurrentMemSize(dom *libvirt.Domain) (uint, error) {
+    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        return 0, err
+    }
+    var domXML libvirtxml.Domain
+    domXML.Unmarshal(xml)
+    return domXML.Memory.Value, nil
+}
+
+
+func DomainEditMemory(dom *libvirt.Domain, memSize uint) error {
+    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        return err
+    }
+    var domXML libvirtxml.Domain
+    domXML.Unmarshal(xml)
+    domXML.Memory.Value = memSize
+    if domXML.CurrentMemory != nil {
+        domXML.CurrentMemory.Value = memSize
+    }
+    xml, err = domXML.Marshal()
+    if err != nil {
+        return err
+    }
+    
+    con, err := dom.DomainGetConnect()
+    if err != nil {
+        return err
+    }
+    _, err = con.DomainDefineXML(xml)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}

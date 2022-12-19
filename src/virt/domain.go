@@ -39,6 +39,7 @@ type CreateVMRequest struct {
     DiskSize        int
     VNCPort         int
     NICBridgeIF     string
+    OSType          string
     HostName        string
     UserName        string
     UserPassword    string
@@ -369,14 +370,14 @@ func CheckCreateVMRequest(request CreateVMRequest, con *libvirt.Connect) (OK boo
 
 
 func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
-    if !operate.FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img") {
+    if !operate.CheckCloudIMGFile(request.OSType) {
         status <- "Download image file"
-        operate.DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img","./data/image", c)
+        operate.DownloadCloudIMG(request.OSType, c)
     } else {
         c <- 70.0
     }
     status <- "Create volume"
-    CreateVol("ubuntu-20.04-server-cloudimg-amd64.img", request.DiskPath, request.DomainName, request.DiskSize, con)
+    CreateVol(request.DiskPath, request.DomainName, request.DiskSize, request.OSType, con)
     c <- 80.0
     // cloud-init make iso file
     status <- "cloud-init"
@@ -384,7 +385,7 @@ func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64,
     c <- 85.0
     // create xml file
     status <- "Create xml file"
-    xml := CreateDomainXML(request.DomainName, request.DiskPath, request.CPUNum, request.MemNum, request.VNCPort)
+    xml := CreateDomainXML(request.DomainName, request.DiskPath, request.CPUNum, request.MemNum, request.VNCPort, request.OSType)
     c <- 90.0
     // create domain
     //dom, err := con.DomainDefineXML(xml)
@@ -409,8 +410,14 @@ func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64,
 }
 
 
-func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
-    tmpXML := operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
+func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int, ostype string) string {
+    var tmpXML string
+    switch ostype {
+    case "Ubuntu20.04":
+        tmpXML = operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
+    case "CentOS8":
+        tmpXML = operate.FileRead("./data/xml/domain/centos-stream8.xml")
+    }
     var domXML libvirtxml.Domain
     domXML.Unmarshal(tmpXML)
     domXML.Name = domain
@@ -433,7 +440,16 @@ func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
 }
 
 
-func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
+func CreateVol(path, name string, resize int, ostype string, con *libvirt.Connect) {
+    item := ""
+    switch ostype {
+    case "Ubuntu20.04":
+        item = "ubuntu-20.04-server-cloudimg-amd64.img"
+    case "CentOS8":
+        item = "CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2"
+    default:
+        item = "ubuntu-20.04-server-cloudimg-amd64.img"
+    }
     // connect pool
     pool, err := con.LookupStoragePoolByTargetPath(path)
     if err != nil {

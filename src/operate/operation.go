@@ -187,6 +187,48 @@ func DownloadFile(url string, dest string, c chan float64) {
 }
 
 
+func GetOSTypeList() []string {
+    ps, _ := exec.Command("osinfo-query", "os").CombinedOutput()
+    s := string(ps)
+    var osList []string
+    if strings.Contains(s, "ubuntu20.04") {
+        osList = append(osList, "Ubuntu20.04")
+    }
+    if strings.Contains(s, "ubuntu22.04") {
+        osList = append(osList, "Ubuntu22.04")
+    }
+    if strings.Contains(s, "centos-stream8") {
+        osList = append(osList, "CentOS8")
+    }
+    if strings.Contains(s, "centos-stream9") {
+        osList = append(osList, "CentOS9")
+    }
+    return osList
+}
+
+
+func CheckCloudIMGFile(ostype string) bool {
+    switch ostype {
+    case "Ubuntu20.04":
+        return FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img")
+    case "CentOS8":
+        return FileCheck("./data/image/CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2")
+    default:
+        return true
+    }
+}
+
+
+func DownloadCloudIMG(ostype string, c chan float64) {
+    switch ostype {
+    case "Ubuntu20.04":
+        DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img", "./data/image", c)
+    case "CentOS8":
+        DownloadFile("https://cloud.centos.org/centos/8-stream/x86_64/images/CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2", "./data/image", c)
+    }
+}
+
+
 func ListBridgeIF() []string {
     listNIC, err := net.Interfaces()
     if err != nil {

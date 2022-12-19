@@ -78,6 +78,7 @@ func GetDomainItems(dom * libvirt.Domain) (items []EditItem, diskNum int, ifaceN
         d := ""
         s := ""
         t := ""
+        m := ""
         if iface.Driver != nil {
             d = iface.Driver.Name
             t = "hostdev"
@@ -86,6 +87,9 @@ func GetDomainItems(dom * libvirt.Domain) (items []EditItem, diskNum int, ifaceN
             s = iface.Source.Bridge.Bridge
             t = "bridge"
         }
+        if iface.MAC != nil {
+            m = iface.MAC.Address
+        }
         ifaceNum++
         xml, _ := iface.Marshal()
         items = append(items, &ItemInterface{
@@ -93,6 +97,7 @@ func GetDomainItems(dom * libvirt.Domain) (items []EditItem, diskNum int, ifaceN
             Driver:     d,
             Source:     s,
             Model:      iface.Model.Type,
+            MACAddr:    m,
             ItemXML:    xml,
         })
     }
@@ -479,5 +484,18 @@ func GetDiskTarget(xml string) string {
 
 func DomainDeleteDisk(dom *libvirt.Domain, diskXML string) error {
     err := dom.DetachDeviceFlags(diskXML, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
+    return err
+}
+
+
+func GetIfaceMAC(xml string) string {
+    var ifaceXML libvirtxml.DomainInterface
+    ifaceXML.Unmarshal(xml)
+    return ifaceXML.MAC.Address
+}
+
+
+func DomainDeleteIface(dom *libvirt.Domain, ifaceXML string) error {
+    err := dom.DetachDeviceFlags(ifaceXML, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
     return err
 }

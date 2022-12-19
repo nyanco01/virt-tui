@@ -181,12 +181,13 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
                 tview.Print(screen, fmt.Sprintf("Type: [whitesmoke]%s", v.GetItemType()), x+3, i, w, tview.AlignLeft, colorSub)
             case 2:
                 tview.Print(screen, fmt.Sprintf("Interface Type: [whitesmoke]%s", v.IfType), x+3, i, w, tview.AlignLeft, colorSub)
-                tview.Print(screen, fmt.Sprintf("Driver: [whitesmoke]%s", v.Driver), x+30, i, w, tview.AlignLeft, colorSub)
+                tview.Print(screen, fmt.Sprintf("MAC: [whitesmoke]%s", v.MACAddr), x+30, i, w, tview.AlignLeft, colorSub)
             case 3:
                 if v.IfType == "bridge" {
                     tview.Print(screen, fmt.Sprintf("Bridge Source: [whitesmoke]%s", v.Source), x+3, i, w, tview.AlignLeft, colorSub)
                 } else {
                     tview.Print(screen, fmt.Sprintf("Model: [whitesmoke]%s", v.Model), x+3, i, w, tview.AlignLeft, colorSub)
+                tview.Print(screen, fmt.Sprintf("Driver: [whitesmoke]%s", v.Driver), x+30, i, w, tview.AlignLeft, colorSub)
                 }
             }
             if cnt % 5 != 4 {
@@ -508,6 +509,59 @@ func SetItemDiskFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edi
 }
 
 
+func MakeItemIfaceDeleteMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit, xml string) tview.Primitive {
+    flex := tview.NewFlex()
+    flex.SetBorder(true).SetTitle("Delete Interface")
+    viewInfo := tview.NewTextView().SetDynamicColors(true)
+    viewInfo.SetText(fmt.Sprintf("[white]Delete Interface by [blue]%s", virt.GetIfaceMAC(xml)))
+    view := tview.NewTextView()
+    view.SetTextAlign(tview.AlignCenter)
+    form := tview.NewForm()
+    form.AddButton("OK", func() {
+        if edit.ifaceItemCount == 1 {
+            view.SetText("At least one NIC is required.")
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            if err := virt.DomainDeleteIface(vm.Domain, xml); err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to delete iface: %v", err)
+                }
+            } else {
+                edit.ClearItems()
+                edit.SetItemList()
+                edit.SetItemsFunc(app, vm, page)
+                page.SwitchToPage("Edit")
+                page.RemovePage("Item Interface")
+            }
+        }
+    })
+    form.AddButton("Cancel", func() {
+        page.SwitchToPage("Edit")
+        page.RemovePage("Item Interface")
+    })
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(viewInfo, 1, 0, false).
+        AddItem(form, 0, 1, true).
+        AddItem(view, 2, 0, false)
+    
+    return pageModal(flex, 40, 8)
+}
+
+
+func SetItemIfaceFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit, xml string) func() {
+    return func() {
+        modal := MakeItemIfaceDeleteMenu(app, vm, page, edit, xml)
+        page.AddPage("Item Interface", modal, true, true)
+        page.ShowPage("Item Interface")
+        app.SetFocus(modal)
+    }
+}
+
+
 func (e *VMEdit)SetItemsFunc(app *tview.Application, vm *virt.VM, page *tview.Pages) *VMEdit {
     for _, item := range e.items {
         switch v := item.(type) {
@@ -517,6 +571,8 @@ func (e *VMEdit)SetItemsFunc(app *tview.Application, vm *virt.VM, page *tview.Pa
             v.SetSelectedFunc(SetItemMemFunc(app, vm, page, e))
         case *virt.ItemDisk:
             v.SetSelectedFunc(SetItemDiskFunc(app, vm, page, e, v.ItemXML))
+        case *virt.ItemInterface:
+            v.SetSelectedFunc(SetItemIfaceFunc(app, vm, page, e, v.ItemXML))
         }
     }
     return e

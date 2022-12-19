@@ -119,6 +119,7 @@ type ItemInterface struct {
     Source          string
     Model           string
     Driver          string
+    MACAddr         string
     Selectedfunc    func()
     ItemXML         string
 }

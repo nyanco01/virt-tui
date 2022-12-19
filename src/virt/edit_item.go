@@ -1,5 +1,6 @@
 package virt
 
+
 type EditItem interface {
     GetItemType() string
     //SetSelectedFunc(handler func()) EditItem
@@ -67,7 +68,9 @@ type ItemDisk struct {
     Device          string
     ImgType         string
     Bus             string
+    Target          string
     Selectedfunc    func()
+    ItemXML         string
 }
 
 func (d ItemDisk) GetItemType() string {
@@ -117,6 +120,7 @@ type ItemInterface struct {
     Model           string
     Driver          string
     Selectedfunc    func()
+    ItemXML         string
 }
 
 

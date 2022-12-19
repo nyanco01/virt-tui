@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 	"log"
-    "strconv"
+	"strconv"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/nyanco01/virt-tui/src/operate"
@@ -11,7 +11,6 @@ import (
 	"github.com/rivo/tview"
 
 	libvirt "libvirt.org/go/libvirt"
-	//libvirtxml "libvirt.org/go/libvirtxml"
 )
 
 
@@ -20,6 +19,8 @@ type VMEdit struct {
     *libvirt.Domain
     name            string
     items           []virt.EditItem
+    diskItemCount   int
+    ifaceItemCount  int
     addDiskFunc     func()
     addIfaceFunc    func()
     lineOfset       int
@@ -38,6 +39,8 @@ func NewVMEdit(dom *libvirt.Domain) *VMEdit {
         Domain:         dom,
         name:           n,
         items:          []virt.EditItem{},
+        diskItemCount:  0,
+        ifaceItemCount: 0,
         lineOfset:      0,
         lineOfsetMax:   0,
         clickItemIndex: -1,
@@ -52,7 +55,7 @@ func (e *VMEdit) ClearItems() *VMEdit {
 
 
 func (e *VMEdit) SetItemList() *VMEdit {
-    e.items = virt.GetDomainItems(e.Domain)
+    e.items, e.diskItemCount, e.ifaceItemCount = virt.GetDomainItems(e.Domain)
     return e
 }
 
@@ -144,12 +147,14 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             switch cnt % 5 {
             case 0:
                 tview.Print(screen, fmt.Sprintf("Type: [whitesmoke]%s", v.GetItemType()), x+3, i, w, tview.AlignLeft, colorSub)
+            case 1:
+                tview.Print(screen, fmt.Sprintf("Path: [whitesmoke]%s", v.Path), x+3, i, w, tview.AlignLeft, colorSub)
             case 2:
                 tview.Print(screen, fmt.Sprintf("Device Type: [whitesmoke]%s", v.Device), x+3, i, w, tview.AlignLeft, colorSub)
-                tview.Print(screen, fmt.Sprintf("Format: [whitesmoke]%s", v.ImgType), x+30, i, w, tview.AlignLeft, colorSub)
+                tview.Print(screen, fmt.Sprintf("Target: [whitesmoke]%s", v.Target), x+30, i, w, tview.AlignLeft, colorSub)
             case 3:
-                tview.Print(screen, fmt.Sprintf("Path: [whitesmoke]%s", v.Path), x+30, i, w, tview.AlignLeft, colorSub)
                 tview.Print(screen, fmt.Sprintf("Bus: [whitesmoke]%s", v.Bus), x+3, i, w, tview.AlignLeft, colorSub)
+                tview.Print(screen, fmt.Sprintf("Format: [whitesmoke]%s", v.ImgType), x+30, i, w, tview.AlignLeft, colorSub)
             }
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
@@ -312,14 +317,14 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
 }
 
 
-func MakeItemCPUEditMenu(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) tview.Primitive {
+func MakeItemCPUEditMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit) tview.Primitive {
     flex := tview.NewFlex()
     flex.SetBorder(true).SetTitle("CPU Edit")
     view := tview.NewTextView()
     view.SetTextAlign(tview.AlignCenter)
     form := tview.NewForm()
-    con, err := dom.DomainGetConnect()
-    cpuNum, err := virt.GetCurrentCPUNum(dom)
+    con, err := vm.Domain.DomainGetConnect()
+    cpuNum, err := virt.GetCurrentCPUNum(vm.Domain)
     if err != nil {
         if virtErr, ok := err.(libvirt.Error); ok {
             view.SetText(virtErr.Message)
@@ -342,7 +347,7 @@ func MakeItemCPUEditMenu(app *tview.Application, dom *libvirt.Domain, page *tvie
     form.AddButton("OK", func() {
         _, cpu := form.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
         c, _ := strconv.Atoi(cpu)
-        err = virt.DomainEditCPU(dom, uint(c))
+        err = virt.DomainEditCPU(vm.Domain, uint(c))
         if err != nil {
             if virtErr, ok := err.(libvirt.Error); ok {
                 view.SetText(virtErr.Message)
@@ -353,6 +358,7 @@ func MakeItemCPUEditMenu(app *tview.Application, dom *libvirt.Domain, page *tvie
         } else {
             edit.ClearItems()
             edit.SetItemList()
+            edit.SetItemsFunc(app, vm, page)
             page.SwitchToPage("Edit")
             page.RemovePage("Item CPU")
         }
@@ -370,9 +376,9 @@ func MakeItemCPUEditMenu(app *tview.Application, dom *libvirt.Domain, page *tvie
 }
 
 
-func SetItemCPUFunc(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) func() {
+func SetItemCPUFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit) func() {
     return func() {
-        modal := MakeItemCPUEditMenu(app, dom, page, edit)
+        modal := MakeItemCPUEditMenu(app, vm, page, edit)
         page.AddPage("Item CPU", modal, true, true)
         page.ShowPage("Item CPU")
         app.SetFocus(modal)
@@ -380,14 +386,14 @@ func SetItemCPUFunc(app *tview.Application, dom *libvirt.Domain, page *tview.Pag
 }
 
 
-func MakeItemMemoryEditMenu(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) tview.Primitive {
+func MakeItemMemoryEditMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit) tview.Primitive {
     flex := tview.NewFlex()
-    flex.SetBorder(true).SetTitle("CPU Edit")
+    flex.SetBorder(true).SetTitle("Memory Edit")
     view := tview.NewTextView()
     view.SetTextAlign(tview.AlignCenter)
     form := tview.NewForm()
-    con, err := dom.DomainGetConnect()
-    memSize, err := virt.GetCurrentMemSize(dom)
+    con, err := vm.Domain.DomainGetConnect()
+    memSize, err := virt.GetCurrentMemSize(vm.Domain)
     if err != nil {
         if virtErr, ok := err.(libvirt.Error); ok {
             view.SetText(virtErr.Message)
@@ -408,7 +414,7 @@ func MakeItemMemoryEditMenu(app *tview.Application, dom *libvirt.Domain, page *t
             view.SetText("The maximum memory capacity of the host machine has been exceeded.")
             view.SetTextColor(tcell.ColorRed)
         } else {
-            err = virt.DomainEditMemory(dom, uint(m))
+            err = virt.DomainEditMemory(vm.Domain, uint(m))
             if err != nil {
                 if virtErr, ok := err.(libvirt.Error); ok {
                     view.SetText(virtErr.Message)
@@ -419,8 +425,9 @@ func MakeItemMemoryEditMenu(app *tview.Application, dom *libvirt.Domain, page *t
             } else {
                 edit.ClearItems()
                 edit.SetItemList()
+                edit.SetItemsFunc(app, vm, page)
                 page.SwitchToPage("Edit")
-                page.RemovePage("Item CPU")
+                page.RemovePage("Item Memory")
             }
         }
     })
@@ -437,11 +444,65 @@ func MakeItemMemoryEditMenu(app *tview.Application, dom *libvirt.Domain, page *t
 }
 
 
-func SetItemMemFunc(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) func() {
+func SetItemMemFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit) func() {
     return func() {
-        modal := MakeItemMemoryEditMenu(app, dom, page, edit)
+        modal := MakeItemMemoryEditMenu(app, vm, page, edit)
         page.AddPage("Item Memory", modal, true, true)
         page.ShowPage("Item Memory")
+        app.SetFocus(modal)
+    }
+}
+
+
+func MakeItemDiskDeleteMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit, xml string) tview.Primitive {
+    flex := tview.NewFlex()
+    flex.SetBorder(true).SetTitle("Delete Disk")
+    viewInfo := tview.NewTextView().SetDynamicColors(true)
+    viewInfo.SetText(fmt.Sprintf("[white]Delete Disk by [orange]%s", virt.GetDiskTarget(xml)))
+    view := tview.NewTextView()
+    view.SetTextAlign(tview.AlignCenter)
+    form := tview.NewForm()
+    form.AddButton("OK", func() {
+        if edit.diskItemCount == 1 {
+            view.SetText("At least one disk is required.")
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            if err := virt.DomainDeleteDisk(vm.Domain, xml); err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to delete disk: %v", err)
+                }
+            } else {
+                edit.ClearItems()
+                edit.SetItemList()
+                edit.SetItemsFunc(app, vm, page)
+                page.SwitchToPage("Edit")
+                page.RemovePage("Item Disk")
+            }
+
+        }
+    })
+    form.AddButton("Cancel", func() {
+        page.SwitchToPage("Edit")
+        page.RemovePage("Item Disk")
+    })
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(viewInfo, 1, 0, false).
+        AddItem(form, 0, 1, true).
+        AddItem(view, 2, 0, false)
+    
+    return pageModal(flex, 40, 8)
+}
+
+
+func SetItemDiskFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VMEdit, xml string) func() {
+    return func() {
+        modal := MakeItemDiskDeleteMenu(app, vm, page, edit, xml)
+        page.AddPage("Item Disk", modal, true, true)
+        page.ShowPage("Item Disk")
         app.SetFocus(modal)
     }
 }
@@ -451,9 +512,11 @@ func (e *VMEdit)SetItemsFunc(app *tview.Application, vm *virt.VM, page *tview.Pa
     for _, item := range e.items {
         switch v := item.(type) {
         case *virt.ItemCPU:
-            v.SetSelectedFunc(SetItemCPUFunc(app, vm.Domain, page, e))
+            v.SetSelectedFunc(SetItemCPUFunc(app, vm, page, e))
         case *virt.ItemMemory:
-            v.SetSelectedFunc(SetItemMemFunc(app, vm.Domain, page, e))
+            v.SetSelectedFunc(SetItemMemFunc(app, vm, page, e))
+        case *virt.ItemDisk:
+            v.SetSelectedFunc(SetItemDiskFunc(app, vm, page, e, v.ItemXML))
         }
     }
     return e
@@ -519,6 +582,7 @@ func MakeAddDiskMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edi
                 } else {
                     edit.ClearItems()
                     edit.SetItemList()
+                    edit.SetItemsFunc(app, vm, page)
                     page.SwitchToPage("Edit")
                     page.RemovePage("AddDiskMenu")
                 }
@@ -562,6 +626,7 @@ func MakeAddIfaceMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, ed
         } else {
             edit.ClearItems()
             edit.SetItemList()
+            edit.SetItemsFunc(app, vm, page)
             page.SwitchToPage("Edit")
             page.RemovePage("AddIfaceMenu")
         }

@@ -14,14 +14,15 @@ type PCIAddr struct {
     function    uint
 }
 
-func GetDomainItems(dom * libvirt.Domain) []EditItem {
+func GetDomainItems(dom * libvirt.Domain) (items []EditItem, diskNum int, ifaceNum int) {
     xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
     if err != nil {
         log.Fatalf("failed to get xml: %v", err)
     }
+    diskNum = 0
+    ifaceNum = 0
     var domXML libvirtxml.Domain
     domXML.Unmarshal(xml)
-    var items []EditItem
     items = append(items, &ItemCPU{
         Number:         domXML.VCPU.Value,
         PlaceMent:      domXML.VCPU.Placement,
@@ -53,11 +54,15 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
         if disk.Source != nil {
             p = disk.Source.File.File
         }
+        diskNum++
+        xml, _ := disk.Marshal()
         items = append(items, &ItemDisk{
             Path:       p,
             Device:     disk.Device,
             ImgType:    disk.Driver.Type,
             Bus:        disk.Target.Bus,
+            Target:     disk.Target.Dev,
+            ItemXML:    xml,
         })
     }
     for _, cntl := range domXML.Devices.Controllers {
@@ -81,11 +86,14 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
             s = iface.Source.Bridge.Bridge
             t = "bridge"
         }
+        ifaceNum++
+        xml, _ := iface.Marshal()
         items = append(items, &ItemInterface{
             IfType:     t,
             Driver:     d,
             Source:     s,
             Model:      iface.Model.Type,
+            ItemXML:    xml,
         })
     }
     for _, serial := range domXML.Devices.Serials {
@@ -140,7 +148,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
             DeviceAddress:  a,
         })
     }
-    return items
+    return
 }
 
 
@@ -459,4 +467,17 @@ func DomainEditMemory(dom *libvirt.Domain, memSize uint) error {
     }
 
     return nil
+}
+
+
+func GetDiskTarget(xml string) string {
+    var diskXML libvirtxml.DomainDisk
+    diskXML.Unmarshal(xml)
+    return diskXML.Target.Dev
+}
+
+
+func DomainDeleteDisk(dom *libvirt.Domain, diskXML string) error {
+    err := dom.DetachDeviceFlags(diskXML, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
+    return err
 }

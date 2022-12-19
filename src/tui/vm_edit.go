@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"log"
+    "strconv"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/nyanco01/virt-tui/src/operate"
@@ -23,6 +24,7 @@ type VMEdit struct {
     addIfaceFunc    func()
     lineOfset       int
     lineOfsetMax    int
+    clickItemIndex  int
 }
 
 
@@ -38,6 +40,7 @@ func NewVMEdit(dom *libvirt.Domain) *VMEdit {
         items:          []virt.EditItem{},
         lineOfset:      0,
         lineOfsetMax:   0,
+        clickItemIndex: -1,
     }
 }
 
@@ -74,8 +77,11 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
     }
     tview.Print(screen, e.name, x, y, w, tview.AlignCenter, tcell.ColorDarkSlateGray)
 
+
+
     tview.Print(screen,"[+] Disk", x, y+1, w/2, tview.AlignCenter, tcell.Color226)
     tview.Print(screen,"[+] NIC", x+(w/2)+1, y+1, w/2, tview.AlignCenter, tcell.Color45)
+
     for i := x; i <= x+w; i++ {
         screen.SetContent(i, y+2, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDarkSlateGray))
     }
@@ -92,8 +98,15 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
         } else if itemIndex >= len(e.items) {
             break
         }
+        if cnt % 5 != 4 {
+            if itemIndex == e.clickItemIndex {
+                for k := x+1; k <= x+w-2; k++ {
+                    screen.SetContent(k, i, ' ', nil, tcell.StyleDefault.Background(tcell.NewRGBColor(40, 40, 40).TrueColor()))
+                }
+            }
+        }
         switch v := e.items[itemIndex].(type) {
-        case virt.ItemCPU:
+        case *virt.ItemCPU:
             colorMain := tcell.ColorGreen.TrueColor()
             colorSub := tcell.ColorLightGreen.TrueColor()
             switch cnt % 5 {
@@ -109,7 +122,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemMemory:
+        case *virt.ItemMemory:
             colorMain := tcell.ColorOrange.TrueColor()
             colorSub := tcell.Color215.TrueColor()
             switch cnt % 5 {
@@ -125,7 +138,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemDisk:
+        case *virt.ItemDisk:
             colorMain := tcell.ColorYellow.TrueColor()
             colorSub := tcell.Color230.TrueColor()
             switch cnt % 5 {
@@ -141,7 +154,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemController:
+        case *virt.ItemController:
             colorMain := tcell.Color46.TrueColor()
             colorSub := tcell.Color155.TrueColor()
             switch cnt % 5 {
@@ -155,7 +168,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemInterface:
+        case *virt.ItemInterface:
             colorMain := tcell.Color33.TrueColor()
             colorSub := tcell.Color81.TrueColor()
             switch cnt % 5 {
@@ -174,7 +187,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemSerial:
+        case *virt.ItemSerial:
             colorMain := tcell.Color240.TrueColor()
             colorSub := tcell.Color244.TrueColor()
             switch cnt % 5 {
@@ -186,7 +199,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemConsole:
+        case *virt.ItemConsole:
             colorMain := tcell.Color240.TrueColor()
             colorSub := tcell.Color244.TrueColor()
             switch cnt % 5 {
@@ -198,7 +211,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemInput:
+        case *virt.ItemInput:
             colorMain := tcell.Color35.TrueColor()
             colorSub := tcell.Color43.TrueColor()
             switch cnt % 5 {
@@ -211,7 +224,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemGraphics:
+        case *virt.ItemGraphics:
             colorMain := tcell.Color133.TrueColor()
             colorSub := tcell.Color140.TrueColor()
             switch cnt % 5 {
@@ -226,7 +239,7 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
             if cnt % 5 != 4 {
                 screen.SetContent(x+1, i, '▐', nil, tcell.StyleDefault.Foreground(colorMain))
             }
-        case virt.ItemVideo:
+        case *virt.ItemVideo:
             colorMain := tcell.Color133.TrueColor()
             colorSub := tcell.Color140.TrueColor()
             switch cnt % 5 {
@@ -253,15 +266,23 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
         if !e.InRect(x, y) {
             return false, nil
         }
+        var itemSpacers = true
+        if (y - 3 + e.lineOfset) % 5 == 0 {
+            itemSpacers = true
+        } else {
+            itemSpacers = false
+        }
         px, py, w, _ := e.GetInnerRect()
         switch action {
         case tview.MouseScrollUp:
             if e.lineOfset > 0 {
+                e.clickItemIndex = -1
                 e.lineOfset--
                 consumed = true
             }
         case tview.MouseScrollDown:
             if e.lineOfset < e.lineOfsetMax {
+                e.clickItemIndex = -1
                 e.lineOfset++
                 consumed = true
             }
@@ -276,10 +297,97 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
                     e.addDiskFunc()
                     consumed = true
                 }
+            } else if py+2 < y && ! itemSpacers {
+                e.clickItemIndex = (y - 3 +e.lineOfset) / 5
+                if len(e.items)-1 < e.clickItemIndex {
+                    return
+                }
+                if f := e.items[e.clickItemIndex].GetSelectedFunc(); f != nil {
+                    f()
+                }
             }
         }
         return
     })
+}
+
+
+func MakeItemCPUEditMenu(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) tview.Primitive {
+    flex := tview.NewFlex()
+    flex.SetBorder(true).SetTitle("CPU Edit")
+    view := tview.NewTextView()
+    view.SetTextAlign(tview.AlignCenter)
+    form := tview.NewForm()
+    con, err := dom.DomainGetConnect()
+    cpuNum, err := virt.GetCurrentCPUNum(dom)
+    if err != nil {
+        if virtErr, ok := err.(libvirt.Error); ok {
+            view.SetText(virtErr.Message)
+            view.SetTextColor(tcell.ColorRed)
+        } else {
+            log.Fatalf("failed to get connect: %v", err)
+        }
+    }
+    maxCPUs, _ := virt.GetNodeMax(con)
+    optionCPU := []string{}
+    currentNum := 0
+    for i := 1; i <= maxCPUs; i++ {
+        optionCPU = append(optionCPU, strconv.Itoa(i))
+        if i == cpuNum {
+            currentNum = i-1
+        }
+    }
+    form.AddDropDown("CPU number", optionCPU, currentNum, nil)
+
+    form.AddButton("OK", func() {
+        _, cpu := form.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
+        c, _ := strconv.Atoi(cpu)
+        err = virt.DomainEditCPU(dom, uint(c))
+        if err != nil {
+            if virtErr, ok := err.(libvirt.Error); ok {
+                view.SetText(virtErr.Message)
+                view.SetTextColor(tcell.ColorRed)
+            } else {
+                log.Fatalf("failed to edit CPU: %v", err)
+            }
+        } else {
+            edit.ClearItems()
+            edit.SetItemList()
+            page.SwitchToPage("Edit")
+            page.RemovePage("Item CPU")
+        }
+    })
+    form.AddButton("Cancel", func() {
+        page.SwitchToPage("Edit")
+        page.RemovePage("Item CPU")
+    })
+
+    flex.SetDirection(tview.FlexRow).
+        AddItem(form, 0, 1, true).
+        AddItem(view, 2, 0, false)
+
+    return pageModal(flex, 40, 10)
+}
+
+
+func SetItemCPUFunc(app *tview.Application, dom *libvirt.Domain, page *tview.Pages, edit *VMEdit) func() {
+    return func() {
+        modal := MakeItemCPUEditMenu(app, dom, page, edit)
+        page.AddPage("Item CPU", modal, true, true)
+        page.ShowPage("Item CPU")
+        app.SetFocus(modal)
+    }
+}
+
+
+func (e *VMEdit)SetItemsFunc(app *tview.Application, vm *virt.VM, page *tview.Pages) *VMEdit {
+    for _, item := range e.items {
+        switch v := item.(type) {
+        case *virt.ItemCPU:
+            v.SetSelectedFunc(SetItemCPUFunc(app, vm.Domain, page, e))
+        }
+    }
+    return e
 }
 
 
@@ -331,7 +439,7 @@ func MakeAddDiskMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, edi
             view.SetTextColor(tcell.ColorOrange.TrueColor())
         } else {
             if operate.CheckIsDisk(diskPath) {
-                err = virt.CreateAddDisk(vm.Domain, diskPath)
+                err = virt.DomainAddDisk(vm.Domain, diskPath)
                 if err != nil {
                     if virtErr, ok := err.(libvirt.Error); ok {
                         view.SetText(virtErr.Message)
@@ -374,7 +482,7 @@ func MakeAddIfaceMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, ed
     form.AddDropDown("Network bridge interface", operate.ListBridgeIF(), 0, nil)
     form.AddButton("Add", func() {
         _, iface := form.GetFormItem(0).(*tview.DropDown).GetCurrentOption()
-        err := virt.CreateAddNIC(vm.Domain, iface)
+        err := virt.DomainAddNIC(vm.Domain, iface)
         if err != nil {
             if virtErr, ok := err.(libvirt.Error); ok {
                 view.SetText(virtErr.Message)
@@ -421,6 +529,7 @@ func MakeVMEditMenu(app *tview.Application, vm *virt.VM, list *tview.List, page 
     edit := NewVMEdit(vm.Domain)
     edit.SetItemList()
     SetAddFunc(app, vm, page, edit)
+    edit.SetItemsFunc(app, vm, page)
 
     return edit
 }

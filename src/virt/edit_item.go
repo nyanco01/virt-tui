@@ -2,7 +2,7 @@ package virt
 
 type EditItem interface {
     GetItemType() string
-    SetSelectedFunc(handler func()) EditItem
+    //SetSelectedFunc(handler func()) EditItem
     GetSelectedFunc() func()
 }
 
@@ -22,13 +22,13 @@ func (c ItemCPU) GetItemType() string {
 }
 
 
-func (c ItemCPU) SetSelectedFunc(handler func()) EditItem {
+func (c *ItemCPU) SetSelectedFunc(handler func()) *ItemCPU {
     c.Selectedfunc = handler
     return c
 }
 
 
-func (c ItemCPU) GetSelectedFunc() func() {
+func (c *ItemCPU) GetSelectedFunc() func() {
     return c.Selectedfunc
 }
 
@@ -50,13 +50,13 @@ func (m ItemMemory) GetItemType() string {
 }
 
 
-func (m ItemMemory) SetSelectedFunc(handler func()) EditItem {
+func (m *ItemMemory) SetSelectedFunc(handler func()) *ItemMemory {
     m.Selectedfunc = handler
     return m
 }
 
 
-func (m ItemMemory) GetSelectedFunc() func() {
+func (m *ItemMemory) GetSelectedFunc() func() {
     return m.Selectedfunc
 }
 
@@ -75,30 +75,14 @@ func (d ItemDisk) GetItemType() string {
 }
 
 
-func (d ItemDisk) SetSelectedFunc(handler func()) EditItem {
+func (d *ItemDisk) SetSelectedFunc(handler func()) *ItemDisk {
     d.Selectedfunc = handler
     return d
 }
 
 
-func (d ItemDisk) GetSelectedFunc() func() {
+func (d *ItemDisk) GetSelectedFunc() func() {
     return d.Selectedfunc
-}
-
-
-
-func (d ItemDisk) GetFilePath() string {
-    return d.Path
-}
-
-
-func (d ItemDisk) GetDeviceType() string {
-    return d.Device
-}
-
-
-func (d ItemDisk) GetImgType() string {
-    return d.ImgType
 }
 
 
@@ -115,13 +99,13 @@ func (c ItemController) GetItemType() string {
 }
 
 
-func (c ItemController) SetSelectedFunc(handler func()) EditItem {
+func (c *ItemController) SetSelectedFunc(handler func()) *ItemController {
     c.Selectedfunc = handler
     return c
 } 
 
 
-func (c ItemController) GetSelectedFunc() func() {
+func (c *ItemController) GetSelectedFunc() func() {
     return c.Selectedfunc
 }
 
@@ -141,13 +125,13 @@ func (i ItemInterface) GetItemType() string {
 }
 
 
-func (i ItemInterface) SetSelectedFunc(handler func()) EditItem {
+func (i *ItemInterface) SetSelectedFunc(handler func()) *ItemInterface {
     i.Selectedfunc = handler
     return i
 }
 
 
-func (i ItemInterface) GetSelectedFunc() func() {
+func (i *ItemInterface) GetSelectedFunc() func() {
     return i.Selectedfunc
 }
 
@@ -164,13 +148,13 @@ func (s ItemSerial) GetItemType() string {
 }
 
 
-func (s ItemSerial) SetSelectedFunc(handler func()) EditItem {
+func (s *ItemSerial) SetSelectedFunc(handler func()) *ItemSerial {
     s.Selectedfunc = handler
     return s
 }
 
 
-func (s ItemSerial) GetSelectedFunc() func() {
+func (s *ItemSerial) GetSelectedFunc() func() {
     return s.Selectedfunc
 }
 
@@ -187,13 +171,13 @@ func (c ItemConsole) GetItemType() string {
 }
 
 
-func (c ItemConsole) SetSelectedFunc(handler func()) EditItem {
+func (c *ItemConsole) SetSelectedFunc(handler func()) *ItemConsole {
     c.Selectedfunc = handler
     return c
 }
 
 
-func (c ItemConsole) GetSelectedFunc() func() {
+func (c *ItemConsole) GetSelectedFunc() func() {
     return c.Selectedfunc
 }
 
@@ -211,13 +195,13 @@ func (i ItemInput) GetItemType() string {
 }
 
 
-func (i ItemInput) SetSelectedFunc(handler func()) EditItem {
+func (i *ItemInput) SetSelectedFunc(handler func()) *ItemInput {
     i.Selectedfunc = handler
     return i
 }
 
 
-func (i ItemInput) GetSelectedFunc() func() {
+func (i *ItemInput) GetSelectedFunc() func() {
     return i.Selectedfunc
 }
 
@@ -236,13 +220,13 @@ func (g ItemGraphics) GetItemType() string {
 }
 
 
-func (g ItemGraphics) SetSelectedFunc(handler func()) EditItem {
+func (g *ItemGraphics) SetSelectedFunc(handler func()) *ItemGraphics {
     g.Selectedfunc = handler
     return g
 }
 
 
-func (g ItemGraphics) GetSelectedFunc() func() {
+func (g *ItemGraphics) GetSelectedFunc() func() {
     return g.Selectedfunc
 }
 
@@ -261,13 +245,13 @@ func (v ItemVideo) GetItemType() string {
 }
 
 
-func (v ItemVideo) SetSelectedFunc(handler func()) EditItem {
+func (v *ItemVideo) SetSelectedFunc(handler func()) *ItemVideo {
     v.Selectedfunc = handler
     return v
 }
 
 
-func (v ItemVideo) GetSelectedFunc() func() {
+func (v *ItemVideo) GetSelectedFunc() func() {
     return v.Selectedfunc
 }
 

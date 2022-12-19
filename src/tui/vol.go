@@ -281,16 +281,18 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
         }
 
         px, py, _, _ := p.GetInnerRect()
-        p.clickVolIndex = -1
+        //p.clickVolIndex = -1
         switch action {
         case tview.MouseScrollUp:
             if p.lineOfset > 0 {
                 p.lineOfset--
+                p.clickVolIndex = -1
                 consumed = true
             }
         case tview.MouseScrollDown:
             if p.lineOfset < p.lineOfsetMax {
                 p.lineOfset++
+                p.clickVolIndex = -1
                 consumed = true
             }
         case tview.MouseLeftClick:

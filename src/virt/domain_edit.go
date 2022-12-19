@@ -22,7 +22,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
     var domXML libvirtxml.Domain
     domXML.Unmarshal(xml)
     var items []EditItem
-    items = append(items, ItemCPU{
+    items = append(items, &ItemCPU{
         Number:         domXML.VCPU.Value,
         PlaceMent:      domXML.VCPU.Placement,
         CPUSet:         domXML.VCPU.CPUSet,
@@ -40,7 +40,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
         curMem = domXML.CurrentMemory.Value
         curMemSI = domXML.CurrentMemory.Unit
     }
-    items = append(items, ItemMemory{
+    items = append(items, &ItemMemory{
         Size:               domXML.Memory.Value,
         SizeSI:             domXML.Memory.Unit,
         MaxSize:            maxMem,
@@ -53,7 +53,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
         if disk.Source != nil {
             p = disk.Source.File.File
         }
-        items = append(items, ItemDisk{
+        items = append(items, &ItemDisk{
             Path:       p,
             Device:     disk.Device,
             ImgType:    disk.Driver.Type,
@@ -64,7 +64,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
         if *cntl.Index != uint(0) {
             continue
         }
-        items = append(items, ItemController{
+        items = append(items, &ItemController{
             ControllerType:     cntl.Type,
             Model:              cntl.Model,
         })
@@ -81,7 +81,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
             s = iface.Source.Bridge.Bridge
             t = "bridge"
         }
-        items = append(items, ItemInterface{
+        items = append(items, &ItemInterface{
             IfType:     t,
             Driver:     d,
             Source:     s,
@@ -89,17 +89,17 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
         })
     }
     for _, serial := range domXML.Devices.Serials {
-        items = append(items, ItemSerial{
+        items = append(items, &ItemSerial{
             TargetType: serial.Target.Type,
         })
     }
     for _, console := range domXML.Devices.Consoles {
-        items = append(items, ItemConsole{
+        items = append(items, &ItemConsole{
             TargetType: console.Target.Type,
         })
     }
     for _, input := range domXML.Devices.Inputs {
-        items = append(items, ItemInput{
+        items = append(items, &ItemInput{
             InputType:  input.Type,
             Bus:        input.Bus,
         })
@@ -123,7 +123,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
             p = graphics.Spice.Port
             l = ""
         }
-        items = append(items, ItemGraphics{
+        items = append(items, &ItemGraphics{
             GraphicsType:   t,
             Port:           p,
             ListemAddress:  l,
@@ -134,7 +134,7 @@ func GetDomainItems(dom * libvirt.Domain) []EditItem {
         if video.Address.PCI != nil {
             a = "pci"
         }
-        items = append(items, ItemVideo{
+        items = append(items, &ItemVideo{
             ModelType:      video.Model.Type,
             VRAM:           video.Model.VRam,
             DeviceAddress:  a,
@@ -253,7 +253,7 @@ func GetItemPCIAddress(dom *libvirt.Domain) (pciAddrs []PCIAddr, err error){
 }
 
 
-func CreateAddNIC(dom *libvirt.Domain, source string) error {
+func DomainAddNIC(dom *libvirt.Domain, source string) error {
     pcis, err := GetItemPCIAddress(dom)
     if err != nil {
         return err
@@ -333,7 +333,7 @@ func GetDiskNameList(dom *libvirt.Domain) (names []string, err error) {
 }
 
 
-func CreateAddDisk(dom *libvirt.Domain, source string) error {
+func DomainAddDisk(dom *libvirt.Domain, source string) error {
     pcis, err := GetItemPCIAddress(dom)
     if err != nil {
         return err
@@ -377,6 +377,43 @@ func CreateAddDisk(dom *libvirt.Domain, source string) error {
         return err
     }
     err = dom.AttachDeviceFlags(disk, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+
+func GetCurrentCPUNum(dom *libvirt.Domain) (int, error) {
+    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        return -1, err
+    }
+    var domXML libvirtxml.Domain
+    domXML.Unmarshal(xml)
+    return int(domXML.VCPU.Value), nil
+}
+
+
+func DomainEditCPU(dom *libvirt.Domain, cpuNum uint) error {
+    xml, err := dom.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        return err
+    }
+    var domXML libvirtxml.Domain
+    domXML.Unmarshal(xml)
+    domXML.VCPU.Value = cpuNum
+    xml, err = domXML.Marshal()
+    if err != nil {
+        return err
+    }
+    
+    con, err := dom.DomainGetConnect()
+    if err != nil {
+        return err
+    }
+    _, err = con.DomainDefineXML(xml)
     if err != nil {
         return err
     }

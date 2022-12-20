@@ -8,7 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	libvirt "libvirt.org/libvirt-go"
+	libvirt "libvirt.org/go/libvirt"
 
 	"github.com/nyanco01/virt-tui/src/operate"
 	"github.com/nyanco01/virt-tui/src/virt"
@@ -18,6 +18,15 @@ import (
 type ProgressBar struct {
     *tview.Box
     rate        float64
+}
+
+
+func InputFieldPositiveInteger(text string, ch rune) bool {
+		if text == "-" {
+			return false
+		}
+		_, err := strconv.Atoi(text)
+		return err == nil
 }
 
 
@@ -130,13 +139,13 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
     
     // Memory size              item index 2
     form.AddInputField(fmt.Sprintf("Memory Size [orange]MB (max. %d MB) ", int(maxMem/1024)), "", 10, nil, nil)
-    form.GetFormItem(2).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
+    form.GetFormItem(2).(*tview.InputField).SetAcceptanceFunc(InputFieldPositiveInteger)
     
     // Disk pool path           item index 3
     form.AddDropDown("Storage pool", listPool.Name, 0, nil)
     // Disk Size                item index 4
     form.AddInputField(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[0] - uint64(1024*1024*1024)) / uint64(1024*1024*1024))), "", 6, nil, nil)
-    form.GetFormItem(4).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
+    form.GetFormItem(4).(*tview.InputField).SetAcceptanceFunc(InputFieldPositiveInteger)
 
     // VNC port number          item index 5
     vncPort := 5901
@@ -146,7 +155,7 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
         }
     }
     form.AddInputField("VNC Port", strconv.Itoa(vncPort), 6, nil, nil)
-    form.GetFormItem(5).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
+    form.GetFormItem(5).(*tview.InputField).SetAcceptanceFunc(InputFieldPositiveInteger)
 
     // Changing the maximum disk size
     form.GetFormItem(3).(*tview.DropDown).SetDoneFunc(func(key tcell.Key) {
@@ -159,12 +168,15 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
     // Network Interface        item index 6
     form.AddDropDown("Network bridge interface", operate.ListBridgeIF(), 0, nil)
 
+    // OS Type List             item index 7
+    form.AddDropDown("OS Type", operate.GetOSTypeList(), 0, nil)
+
     //cloud-init
-    // Host name                item index 7
+    // Host name                item index 8
     form.AddInputField("host name", "", 30, nil, nil)
-    // guest vm user name       item index 8
+    // guest vm user name       item index 9
     form.AddInputField("user name", "", 30, nil, nil)
-    // guest vm user password   item index 9
+    // guest vm user password   item index 10
     form.AddPasswordField("user password", "", 30, '*', nil)
 
     c := make(chan float64)
@@ -179,6 +191,7 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
         dSize, _ := strconv.Atoi(form.GetFormItem(4).(*tview.InputField).GetText())
         VNCp, _ := strconv.Atoi(form.GetFormItem(5).(*tview.InputField).GetText())
         _, brName := form.GetFormItem(6).(*tview.DropDown).GetCurrentOption()
+        _, ostype := form.GetFormItem(7).(*tview.DropDown).GetCurrentOption()
         request := virt.CreateVMRequest{
             DomainName:     form.GetFormItem(0).(*tview.InputField).GetText(),
             CPUNum:         cpu,
@@ -187,9 +200,10 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
             DiskSize:       dSize,
             VNCPort:        VNCp,
             NICBridgeIF:    brName,
-            HostName:       form.GetFormItem(7).(*tview.InputField).GetText(),
-            UserName:       form.GetFormItem(8).(*tview.InputField).GetText(),
-            UserPassword:   form.GetFormItem(9).(*tview.InputField).GetText(),
+            OSType:         ostype,
+            HostName:       form.GetFormItem(8).(*tview.InputField).GetText(),
+            UserName:       form.GetFormItem(9).(*tview.InputField).GetText(),
+            UserPassword:   form.GetFormItem(10).(*tview.InputField).GetText(),
         }
 
         b, ErrInfo := virt.CheckCreateVMRequest(request, con)
@@ -234,22 +248,16 @@ func MakeVMCreate(app *tview.Application, con *libvirt.Connect, page *tview.Page
         AddItem(bar, 1, 0, false).
         AddItem(view, 1, 0, false)
 
-    return pageModal(flex, 65, 27)
+    return pageModal(flex, 65, 29)
 }
 
 
 func doneCreate(name string, con *libvirt.Connect, list *tview.List, page *tview.Pages, app *tview.Application, done chan int) {
     <-done
-    /*
-    vm, err := con.LookupDomainByName(name)
-    if err != nil {
-        log.Fatalf("failed to get domain: %v", err)
-    }
-    defer vm.Free()
-    */
+
     list.AddItem(name, "shutdown", rune(list.GetItemCount())+'0', nil)
     list.SetCurrentItem(list.GetItemCount())
-    page.AddPage(name, NotUpVM(name), true, true)
+    page.AddPage(name, NewVMStatus(app, virt.VMStatus[name]), true, true)
     app.SetFocus(list)
     page.RemovePage("Create")
     app.Draw()

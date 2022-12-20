@@ -5,8 +5,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	libvirt "libvirt.org/libvirt-go"
 
+	libvirt "libvirt.org/go/libvirt"
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
@@ -34,8 +34,6 @@ type Pool struct {
     // Boolean type of whether the Create button is clicked or not.
     onClickCreate       bool
     clickVolIndex       int
-
-    testClick           int
 
     selectedCreateFunc  func()
     selectedDeleteFunc  func(volIndex int)
@@ -196,6 +194,11 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 vols = 0
             }
 
+            // Prevent out-of-array references when volume is deleted
+            if len(p.volumes) - 1 < vols {
+                break
+            }
+
             if cnt % 6 != 5 {
                 var volColor tcell.Color
                 // Change the display depending on whether it is selected or not
@@ -240,7 +243,6 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 }
             }
 
-
             if vols != l && cnt % 6 != 0 {
                 tview.Print(screen, "│", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
             }
@@ -271,7 +273,6 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 			return false, nil
 		}
 
-        p.testClick = y
         var volSpacers bool
         if (y - 8 + p.lineOfset) % 6 == 0 {
             volSpacers = true
@@ -280,16 +281,18 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
         }
 
         px, py, _, _ := p.GetInnerRect()
-        p.clickVolIndex = -1
+        //p.clickVolIndex = -1
         switch action {
         case tview.MouseScrollUp:
             if p.lineOfset > 0 {
                 p.lineOfset--
+                p.clickVolIndex = -1
                 consumed = true
             }
         case tview.MouseScrollDown:
             if p.lineOfset < p.lineOfsetMax {
                 p.lineOfset++
+                p.clickVolIndex = -1
                 consumed = true
             }
         case tview.MouseLeftClick:
@@ -302,6 +305,10 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
                 p.onClickCreate = false
                 if 3+px <= x && 8+py <= y && !volSpacers {
                     p.clickVolIndex = (y - 8 + p.lineOfset) / 6
+                    // Exception handling when an item is clicked on a location after it has been erased
+                    if len(p.volumes)-1 < p.clickVolIndex {
+                        break
+                    }
                     if p.selectedDeleteFunc != nil {
                         p.selectedDeleteFunc(p.clickVolIndex)
                     }
@@ -355,6 +362,8 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
     })
 
     btCreate := tview.NewButton("Create")
+    btCreate.SetBackgroundColor(tcell.Color220)
+    btCreate.SetLabelColor(tcell.Color232)
 
     // If the last item on the list is selected, toggle to move focus to the button
     list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -366,7 +375,6 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
         }
         return event
     })
-
     // Toggling when the focus is on a button focuses the list
     btCreate.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         switch event.Key() {

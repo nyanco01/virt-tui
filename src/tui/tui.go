@@ -1,12 +1,14 @@
 package tui
 
 import (
-    "log"
+	"fmt"
+	"log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	libvirt "libvirt.org/libvirt-go"
+	libvirt "libvirt.org/go/libvirt"
 )
+
 
 func still() *tview.Box {
     box := tview.NewBox().SetBorder(false)
@@ -15,25 +17,42 @@ func still() *tview.Box {
 
         return x + 1, (y - (height / 2)) + 1, width - 2, height -(y - (height / 2)) + 1 - y
     })
-
     return box
 }
 
-func configStyles() {
-        tview.Styles = tview.Theme{
-                PrimitiveBackgroundColor:    tcell.ColorBlack,
-                ContrastBackgroundColor:     tcell.ColorDarkBlue,
-                MoreContrastBackgroundColor: tcell.ColorGreen,
-                BorderColor:                 tcell.ColorWhite,
-                TitleColor:                  tcell.ColorWhite,
-                GraphicsColor:               tcell.ColorWhite,
-                PrimaryTextColor:            tcell.ColorGhostWhite,
-                SecondaryTextColor:          tcell.ColorYellow,
-                TertiaryTextColor:           tcell.ColorGreen,
-                InverseTextColor:            tcell.ColorDeepSkyBlue,
-                ContrastSecondaryTextColor:  tcell.ColorDarkCyan,
-        }
+
+func belowMinimumSize() *tview.Box {
+    box := tview.NewBox().SetBorder(false)
+    box.SetBackgroundColor(tcell.ColorBlack.TrueColor())
+    box.SetDrawFunc(func(screen tcell.Screen, x, y, width, height int) (int, int, int, int) {
+        tview.Print(screen, "Your terminal size", x+1, y - 1 + (height / 2), width - 2, tview.AlignCenter, tcell.ColorWhite)
+        tview.Print(screen, fmt.Sprintf("width: [orange]%d[white], height: [orange]%d", width, height), x+1, y + (height / 2), width - 2, tview.AlignCenter, tcell.ColorWhite)
+        tview.Print(screen, "Required terminal size", x+1, y + 1 + (height / 2), width - 2, tview.AlignCenter, tcell.ColorWhite)
+        tview.Print(screen, fmt.Sprintf("width: [lightgreen]%d[white], height: [orange]%d", 95, 35), x+1, y + 2 + (height / 2), width - 2, tview.AlignCenter, tcell.ColorWhite)
+
+        return x + 1, (y - (height / 2)) + 1, width - 2, height -(y - (height / 2)) + 1 - y
+    })
+    return box
 }
+
+
+func configStyles() {
+    bgc := tcell.NewRGBColor(0, 0, 0)
+    tview.Styles = tview.Theme{
+            PrimitiveBackgroundColor:    bgc,
+            ContrastBackgroundColor:     tcell.ColorDarkBlue,
+            MoreContrastBackgroundColor: tcell.ColorGreen,
+            BorderColor:                 tcell.ColorWhite,
+            TitleColor:                  tcell.ColorWhite,
+            GraphicsColor:               tcell.ColorWhite,
+            PrimaryTextColor:            tcell.ColorGhostWhite,
+            SecondaryTextColor:          tcell.ColorYellow,
+            TertiaryTextColor:           tcell.ColorGreen,
+            InverseTextColor:            tcell.ColorDeepSkyBlue,
+            ContrastSecondaryTextColor:  tcell.ColorDarkCyan,
+    }
+}
+
 
 func MakeApp() *tview.Application {
     configStyles()
@@ -52,10 +71,10 @@ func MakeApp() *tview.Application {
     page := tview.NewPages()
     page.AddPage("vm", MakeVMUI(app, c), true, true)
     page.AddPage("volume", MakeVolUI(app, c), true, true)
-    page.AddPage("network", still(), true, true)
+    page.AddPage("network", MakeNetUI(app, c), true, true)
     page.SwitchToPage("vm")
 
-    btVM := tview.NewButton("[#F66640::b]VMs").SetSelectedFunc(func() {
+    btVM := tview.NewButton("[#F66640::]VMs").SetSelectedFunc(func() {
         page.SwitchToPage("vm")
     })
     btVM.SetBackgroundColor(tcell.NewRGBColor(120, 120, 120))

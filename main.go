@@ -1,15 +1,13 @@
 package main
 
 import (
-
-
     "github.com/nyanco01/virt-tui/src/tui"
     "github.com/nyanco01/virt-tui/src/operate"
-
 )
 
+
 func main() {
-    operate.FolderInit()
+    operate.Initialize()
 
     app := tui.MakeApp()
 

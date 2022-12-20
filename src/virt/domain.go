@@ -5,11 +5,19 @@ import (
 	"sort"
 	"time"
 
+	"github.com/nyanco01/virt-tui/src/constants"
 	"github.com/nyanco01/virt-tui/src/operate"
-	libvirt "libvirt.org/libvirt-go"
-	libvirtxml "libvirt.org/libvirt-go-xml"
+	libvirt "libvirt.org/go/libvirt"
+	libvirtxml "libvirt.org/go/libvirtxml"
 )
 
+const (
+    cpuaffi         = constants.CPUAffinity
+    domnotrunning   = constants.DomainNotRunning
+    readmonitor     = constants.UnableReadMonitor
+)
+
+var VMStatus        map [string]*VM
 
 type PoolInfos struct {
     Name        []string
@@ -23,8 +31,6 @@ type VM struct {
     Status          bool
 }
 
-
-
 type CreateVMRequest struct {
     DomainName      string
     CPUNum          int
@@ -33,6 +39,7 @@ type CreateVMRequest struct {
     DiskSize        int
     VNCPort         int
     NICBridgeIF     string
+    OSType          string
     HostName        string
     UserName        string
     UserPassword    string
@@ -62,8 +69,15 @@ func butVMItemCheck(item string) string {
 
 func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
     cpuGuest, err := d.GetVcpus()
+    //var errCPUaffi error = errors.New("")
     if err != nil {
-        log.Fatalf("failed to get cpu status: %v", err)
+        if virtErr, ok := err.(libvirt.Error); ok {
+            if virtErr.Message == cpuaffi {
+                return 1, 1
+            } else {
+                log.Fatalf("failed to get cpu status: %v", err)
+            }
+        }
     }
     var all uint64
     all = 0
@@ -80,7 +94,15 @@ func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
 func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
     domMemStatus, err := d.MemoryStats(13, 0)
     if err != nil {
-        log.Fatalf("failed to get memory: %v", err)
+        if virtErr, ok := err.(libvirt.Error); ok {
+            if virtErr.Message == domnotrunning || virtErr.Message == readmonitor {
+                max = 1000
+                used = 100
+                return
+            } else {
+                log.Fatalf("failed to get memory: %v", err)
+            }
+        }
     }
 
     memStatus := make(map[int]uint64)
@@ -126,6 +148,40 @@ func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
 }
 
 
+func GetTrafficByMAC(d *libvirt.Domain, mac string) (txByte, rxByte int64) {
+    ifState, err := d.InterfaceStats(mac)
+    if err != nil {
+        if virtErr, ok := err.(libvirt.Error); ok {
+            if virtErr.Message == domnotrunning {
+                txByte = 10000
+                rxByte = 10000
+                return
+            } else {
+                log.Fatalf("failed to get iface state: %v", err)
+            }
+        }
+    }
+
+    return ifState.TxBytes, ifState.RxBytes
+}
+
+
+func GetNICListMAC(d *libvirt.Domain) (mac []string) {
+    xml, err := d.GetXMLDesc(0)
+    if err != nil {
+        log.Fatalf("failed to open xml: %v", err)
+    }
+    var xmlDomain libvirtxml.Domain
+    xmlDomain.Unmarshal(xml)
+    for _, iface := range xmlDomain.Devices.Interfaces {
+        if iface.MAC != nil {
+            mac = append(mac, iface.MAC.Address)
+        }
+    }
+    return
+}
+
+
 func GetDisks(d *libvirt.Domain) []Diskinfo {
     xml, err := d.GetXMLDesc(0)
     if err != nil {
@@ -157,8 +213,27 @@ func GetDisks(d *libvirt.Domain) []Diskinfo {
 }
 
 
-func LookupVMs(c *libvirt.Connect) []VM {
-    vms := []VM{}
+func GetNICInfo(d *libvirt.Domain) (name, MAC string) {
+    xml, err := d.GetXMLDesc(0 | libvirt.DOMAIN_XML_INACTIVE)
+    if err != nil {
+        log.Fatalf("failed to get xml: %v", err)
+    }
+    var domXML libvirtxml.Domain
+    err = domXML.Unmarshal(xml)
+    if err != nil {
+        log.Fatalf("failed to unmarshal xml: %v", err)
+    }
+    for _, iface := range domXML.Devices.Interfaces {
+        MAC = iface.MAC.Address
+    }
+    name = operate.GetIFNameByMAC(MAC)
+    MAC = operate.ConvertMAC(MAC)
+    return
+}
+
+
+func LookupVMs(c *libvirt.Connect) []*VM {
+    vms := []*VM{}
     domActive, err := c.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_ACTIVE)
     domInactive, err := c.ListAllDomains(libvirt.CONNECT_LIST_DOMAINS_INACTIVE)
     if err != nil {
@@ -171,7 +246,7 @@ func LookupVMs(c *libvirt.Connect) []VM {
             log.Fatalf("failed to get domain name: %v", err)
         }
         tmpDomain := d
-        vms = append(vms, VM{Domain: &tmpDomain,Name: n, Status: true})
+        vms = append(vms, &VM{Domain: &tmpDomain,Name: n, Status: true})
     }
     for _, d := range domInactive {
         n, err := d.GetName()
@@ -180,7 +255,7 @@ func LookupVMs(c *libvirt.Connect) []VM {
         }
         tmpDomain := d
         vm := VM{Domain: &tmpDomain,Name: n, Status: false}
-        vms = append(vms, vm)
+        vms = append(vms, &vm)
     }
     return vms
 }
@@ -197,7 +272,7 @@ func GetNodeMax(c *libvirt.Connect) (maxCPU int, maxMem uint64) {
 }
 
 // Make a list of the VNC ports you are using from the list of VMs
-func GetUsedResources(vms []VM) (name []string, vnc []int) {
+func GetUsedResources(vms []*VM) (name []string, vnc []int) {
     var domainXml libvirtxml.Domain
     for _, vm := range vms {
         xml, _ := vm.Domain.GetXMLDesc(0)
@@ -295,14 +370,14 @@ func CheckCreateVMRequest(request CreateVMRequest, con *libvirt.Connect) (OK boo
 
 
 func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64, status chan string, done chan int) {
-    if !operate.FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img") {
+    if !operate.CheckCloudIMGFile(request.OSType) {
         status <- "Download image file"
-        operate.DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img","./data/image", c)
+        operate.DownloadCloudIMG(request.OSType, c)
     } else {
         c <- 70.0
     }
     status <- "Create volume"
-    CreateVol("ubuntu-20.04-server-cloudimg-amd64.img", request.DiskPath, request.DomainName, request.DiskSize, con)
+    CreateVol(request.DiskPath, request.DomainName, request.DiskSize, request.OSType, con)
     c <- 80.0
     // cloud-init make iso file
     status <- "cloud-init"
@@ -310,7 +385,7 @@ func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64,
     c <- 85.0
     // create xml file
     status <- "Create xml file"
-    xml := CreateDomainXML(request.DomainName, request.DiskPath, request.CPUNum, request.MemNum, request.VNCPort)
+    xml := CreateDomainXML(request.DomainName, request.DiskPath, request.CPUNum, request.MemNum, request.VNCPort, request.OSType)
     c <- 90.0
     // create domain
     //dom, err := con.DomainDefineXML(xml)
@@ -324,13 +399,25 @@ func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64,
     c <- 100.0
     status <- "Complete !"
     time.Sleep(time.Second)
-    dom.Free()
+    var vm *VM = &VM{
+        Name:   request.DomainName,
+        Domain: dom,
+        Status: false,
+    }
+    VMStatus[request.DomainName] = vm
+    //dom.Free()
     done <- 1
 }
 
 
-func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
-    tmpXML := operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
+func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int, ostype string) string {
+    var tmpXML string
+    switch ostype {
+    case "Ubuntu20.04":
+        tmpXML = operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
+    case "CentOS8":
+        tmpXML = operate.FileRead("./data/xml/domain/centos-stream8.xml")
+    }
     var domXML libvirtxml.Domain
     domXML.Unmarshal(tmpXML)
     domXML.Name = domain
@@ -353,7 +440,16 @@ func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int) string {
 }
 
 
-func CreateVol(item, path, name string, resize int, con *libvirt.Connect) {
+func CreateVol(path, name string, resize int, ostype string, con *libvirt.Connect) {
+    item := ""
+    switch ostype {
+    case "Ubuntu20.04":
+        item = "ubuntu-20.04-server-cloudimg-amd64.img"
+    case "CentOS8":
+        item = "CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2"
+    default:
+        item = "ubuntu-20.04-server-cloudimg-amd64.img"
+    }
     // connect pool
     pool, err := con.LookupStoragePoolByTargetPath(path)
     if err != nil {
@@ -393,15 +489,40 @@ func CreateVolXML(path, name string, resize int) string {
 
 func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
     var nicXML libvirtxml.DomainInterface
-    nicXML.Unmarshal(operate.FileRead("./data/xml/network/bridge.xml"))
+    nicXML.Unmarshal(operate.FileRead("./data/xml/dom_items/br.xml"))
     nicXML.Source.Bridge.Bridge = ifName
     nicXML.MAC.Address = operate.NewBridgeMAC(ifName)
     xml, err := nicXML.Marshal()
     if err != nil {
         log.Fatalf("failed to marshal xml: %v", err)
     }
-    err = d.AttachDeviceFlags(xml, 2)
+    err = d.AttachDeviceFlags(xml, libvirt.DOMAIN_DEVICE_MODIFY_CONFIG)
     if err != nil {
         log.Fatalf("failed to attach network interface: %v\n", err)
     }
 }
+
+
+func StartDomain(dom *libvirt.Domain) {
+    err := dom.Create()
+    if err != nil {
+        log.Fatalf("failed to start domain: %v", err)
+    }
+    dur := time.Millisecond * 200
+    for range time.Tick(dur) {
+        b, _ := dom.IsActive()
+        if b {
+            break
+        }
+    }
+}
+
+
+func DeleteDomain(dom *libvirt.Domain) {
+    err := dom.Undefine()
+    if err != nil {
+        log.Fatalf("failed to Delete Domain: %v", err)
+    }
+}
+
+

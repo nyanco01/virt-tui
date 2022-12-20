@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	libvirt "libvirt.org/libvirt-go"
-	libvirtxml "libvirt.org/libvirt-go-xml"
+	libvirt "libvirt.org/go/libvirt"
+    libvirtxml "libvirt.org/go/libvirtxml"
 
 	"github.com/nyanco01/virt-tui/src/operate"
 )
@@ -134,7 +134,10 @@ func CreateVolume(name, poolPath string, size int, con *libvirt.Connect) {
         log.Fatalf("failed to get pool: %v", err)
     }
     xml := CreateVolumeXML(name, poolPath, size)
-    vol, _ := pool.StorageVolCreateXML(xml, libvirt.STORAGE_VOL_CREATE_PREALLOC_METADATA)
+    vol, err := pool.StorageVolCreateXML(xml, libvirt.STORAGE_VOL_CREATE_PREALLOC_METADATA)
+        if err != nil {
+        log.Fatalf("failed to create vol by %s: %v", name, err)
+    }
     pool.Refresh(0)
     vol.Free()
 }

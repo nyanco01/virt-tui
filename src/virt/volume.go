@@ -127,19 +127,20 @@ func CheckCreateVolumeRequest(name string, size int, available uint64) (OK bool,
 }
 
 
-func CreateVolume(name, poolPath string, size int, con *libvirt.Connect) {
+func CreateVolume(name, poolPath string, size int, con *libvirt.Connect) error {
     pool, err := con.LookupStoragePoolByTargetPath(poolPath)
     defer pool.Free()
     if err != nil {
-        log.Fatalf("failed to get pool: %v", err)
+        return err
     }
     xml := CreateVolumeXML(name, poolPath, size)
     vol, err := pool.StorageVolCreateXML(xml, libvirt.STORAGE_VOL_CREATE_PREALLOC_METADATA)
-        if err != nil {
-        log.Fatalf("failed to create vol by %s: %v", name, err)
+    if err != nil {
+        return err
     }
     pool.Refresh(0)
     vol.Free()
+    return nil
 }
 
 

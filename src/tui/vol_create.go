@@ -1,9 +1,8 @@
 package tui
 
 import (
-
-	//"github.com/gdamore/tcell/v2"
 	"fmt"
+    "log"
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
@@ -31,16 +30,25 @@ func MakeVolumeCreateForm(app * tview.Application, con *libvirt.Connect, view *t
         b, ErrInfo := virt.CheckCreateVolumeRequest(name, size, available)
 
         if b {
-            view.SetText("OK").SetTextColor(tcell.ColorSkyblue)
-            virt.CreateVolume(name, pool.path, size, con)
+            //view.SetText("OK").SetTextColor(tcell.ColorSkyblue)
+            err := virt.CreateVolume(name, pool.path, size, con)
 
-            vol := Volume {
-                info:       virt.GetVolumeInfo(pool.path + "/" + name, con),
-                attachVM:   "none",
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to create volume: %v", err)
+                }
+            } else {
+                vol := Volume {
+                    info:       virt.GetVolumeInfo(pool.path + "/" + name, con),
+                    attachVM:   "none",
+                }
+                pool.volumes = append(pool.volumes, vol)
+                pool.onClickCreate = false
+                page.RemovePage("CreateVolume")
             }
-            pool.volumes = append(pool.volumes, vol)
-            pool.onClickCreate = false
-            page.RemovePage("CreateVolume")
         } else {
             view.SetText(ErrInfo).SetTextColor(tcell.ColorRed)
         }

@@ -411,13 +411,7 @@ func CreateDomain(request CreateVMRequest, con *libvirt.Connect, c chan float64,
 
 
 func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int, ostype string) string {
-    var tmpXML string
-    switch ostype {
-    case "Ubuntu20.04":
-        tmpXML = operate.FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
-    case "CentOS8":
-        tmpXML = operate.FileRead("./data/xml/domain/centos-stream8.xml")
-    }
+    tmpXML := operate.OpenDomainXML(ostype)
     var domXML libvirtxml.Domain
     domXML.Unmarshal(tmpXML)
     domXML.Name = domain
@@ -441,15 +435,7 @@ func CreateDomainXML(domain, diskPath string, vcpu, mem, vnc int, ostype string)
 
 
 func CreateVol(path, name string, resize int, ostype string, con *libvirt.Connect) {
-    item := ""
-    switch ostype {
-    case "Ubuntu20.04":
-        item = "ubuntu-20.04-server-cloudimg-amd64.img"
-    case "CentOS8":
-        item = "CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2"
-    default:
-        item = "ubuntu-20.04-server-cloudimg-amd64.img"
-    }
+    item := operate.GetImageFileName(ostype)
     // connect pool
     pool, err := con.LookupStoragePoolByTargetPath(path)
     if err != nil {

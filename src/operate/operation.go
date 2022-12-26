@@ -21,6 +21,9 @@ import (
 )
 
 
+var osList []string
+
+
 func ShellError(err error) {
     if err != nil {
         log.Fatalf("failed to run shell command: %v", err)
@@ -188,22 +191,8 @@ func DownloadFile(url string, dest string, c chan float64) {
 
 
 func GetOSTypeList() []string {
-    ps, _ := exec.Command("osinfo-query", "os").CombinedOutput()
-    s := string(ps)
-    var osList []string
-    if strings.Contains(s, "ubuntu20.04") {
-        osList = append(osList, "Ubuntu20.04")
-    }
-    if strings.Contains(s, "ubuntu22.04") {
-        osList = append(osList, "Ubuntu22.04")
-    }
-    if strings.Contains(s, "centos-stream8") {
-        osList = append(osList, "CentOS8")
-    }
-    if strings.Contains(s, "centos-stream9") {
-        osList = append(osList, "CentOS9")
-    }
-    return osList
+    l := osList
+    return l
 }
 
 
@@ -211,8 +200,12 @@ func CheckCloudIMGFile(ostype string) bool {
     switch ostype {
     case "Ubuntu20.04":
         return FileCheck("./data/image/ubuntu-20.04-server-cloudimg-amd64.img")
+    case "Ubuntu22.04":
+        return FileCheck("./data/image/ubuntu-22.04-server-cloudimg-amd64.img")
     case "CentOS8":
         return FileCheck("./data/image/CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2")
+    case "CentOS9":
+        return FileCheck("./data/image/CentOS-Stream-GenericCloud-9-20221219.0.x86_64.qcow2")
     default:
         return true
     }
@@ -223,8 +216,44 @@ func DownloadCloudIMG(ostype string, c chan float64) {
     switch ostype {
     case "Ubuntu20.04":
         DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img", "./data/image", c)
+    case "Ubuntu22.04":
+        DownloadFile("https://cloud-images.ubuntu.com/releases/jammy/release-20221214/ubuntu-22.04-server-cloudimg-amd64.img", "./data/image", c)
     case "CentOS8":
         DownloadFile("https://cloud.centos.org/centos/8-stream/x86_64/images/CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2", "./data/image", c)
+    case "CentOS9":
+        DownloadFile("https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-20221219.0.x86_64.qcow2", "./data/image", c)
+    }
+}
+
+
+func OpenDomainXML(ostype string) string {
+    switch ostype {
+    case "Ubuntu20.04":
+        return FileRead("./data/xml/domain/ubuntu-20.04-server.xml")
+    case "Ubuntu22.04":
+        return FileRead("./data/xml/domain/ubuntu-22.04-server.xml")
+    case "CentOS8":
+        return FileRead("./data/xml/domain/centos-stream8.xml")
+    case "CentOS9":
+        return FileRead("./data/xml/domain/centos-stream9.xml")
+    default:
+        return ""
+    }
+}
+
+
+func GetImageFileName(ostype string) string {
+    switch ostype {
+    case "Ubuntu20.04":
+        return "ubuntu-20.04-server-cloudimg-amd64.img"
+    case "Ubuntu22.04":
+        return "ubuntu-22.04-server-cloudimg-amd64.img"
+    case "CentOS8":
+        return "CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2"
+    case "CentOS9":
+        return "CentOS-Stream-GenericCloud-9-20221219.0.x86_64.qcow2"
+    default:
+        return "ubuntu-20.04-server-cloudimg-amd64.img"
     }
 }
 

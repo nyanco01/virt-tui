@@ -211,16 +211,17 @@ func CheckCreatePoolRequest(name, path string, con *libvirt.Connect) (OK bool, E
 }
 
 
-func CreatePool(name, path string, con *libvirt.Connect) {
+func CreatePool(name, path string, con *libvirt.Connect) error {
     poolxml := CreatePoolXML(name, path)
     pool, err := con.StoragePoolDefineXML(poolxml, 0)
     if err != nil {
-        log.Fatalf("failed to create pool: %v", err)
+        return err
     }
     time.Sleep(time.Second)
     pool.SetAutostart(true)
     pool.Create(0)
     pool.Free()
+    return nil
 }
 
 
@@ -263,29 +264,31 @@ func CheckDeletePoolRequest(name string, con *libvirt.Connect) (OK bool, vmName 
 }
 
 
-func DeletePool(name string, con *libvirt.Connect) {
+func DeletePool(name string, con *libvirt.Connect) error {
     pool, err := con.LookupStoragePoolByName(name)
     if err != nil {
-        log.Fatalf("failed to get pool: %v", err)
+        return err
     }
     err = pool.Destroy()
     if err != nil {
-        log.Fatalf("failed to Destroy pool by %s: %v", name, err)
+        return err
     }
     err = pool.Undefine()
     if err != nil {
-        log.Fatalf("failed to Undefine pool by %s: %v", name, err)
+        return err
     }
+    return nil
 }
 
 
-func DeleteVolume(volPath string, con *libvirt.Connect) {
+func DeleteVolume(volPath string, con *libvirt.Connect) error {
     vol, err := con.LookupStorageVolByPath(volPath)
     if err != nil {
-        log.Fatalf("failed to get volume: %v", err)
+        return err
     }
     err = vol.Delete(libvirt.STORAGE_VOL_DELETE_NORMAL)
     if err != nil {
-        log.Fatalf("failed to delete volume: %v", err)
+        return err
     }
+    return nil
 }

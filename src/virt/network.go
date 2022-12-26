@@ -207,7 +207,7 @@ func CheckNetworkName(con *libvirt.Connect, name string) bool {
 }
 
 
-func CreateNetworkByBridge(con *libvirt.Connect, name, source string) {
+func CreateNetworkByBridge(con *libvirt.Connect, name, source string) error {
     operate.CreateShellByBridgeIF(name, source)
     operate.RunShellByCreateBridgeIF(name)
 
@@ -219,21 +219,22 @@ func CreateNetworkByBridge(con *libvirt.Connect, name, source string) {
 
     xml, err := netXML.Marshal()
     if err != nil {
-        log.Fatalf("failed to marshal xml by bridge network: %v", err)
+        return err
     }
     net, err := con.NetworkDefineXML(xml)
     if err != nil {
-        log.Fatalf("failed to create bridge network: %v",err)
+        return err
     }
     err = net.SetAutostart(true)
     err = net.Create()
     if err != nil {
-        log.Fatalf("failed to start bridge network: %v",err)
+        return err
     }
+    return nil
 }
 
 
-func CreateNetworkByNAT(con *libvirt.Connect, name, network string) {
+func CreateNetworkByNAT(con *libvirt.Connect, name, network string) error {
     var netXML libvirtxml.Network
     netXML.Unmarshal(operate.FileRead("./data/xml/network/nat.xml"))
     netXML.Name = name
@@ -250,21 +251,22 @@ func CreateNetworkByNAT(con *libvirt.Connect, name, network string) {
     }
     xml, err := netXML.Marshal()
     if err != nil {
-        log.Fatalf("failed to marshal xml by nat network: %v", err)
+        return err
     }
     net, err := con.NetworkDefineXML(xml)
     if err != nil {
-        log.Fatalf("failed to create nat network: %v",err)
+        return err
     }
     err = net.SetAutostart(true)
     err = net.Create()
     if err != nil {
-        log.Fatalf("failed to start nat network: %v",err)
+        return err
     }
+    return nil
 }
 
 
-func CreateNetworkByPrivate(con *libvirt.Connect, name string) {
+func CreateNetworkByPrivate(con *libvirt.Connect, name string) error {
     var netXML libvirtxml.Network
     netXML.Unmarshal(operate.FileRead("./data/xml/network/private.xml"))
     netXML.Name = name
@@ -273,17 +275,18 @@ func CreateNetworkByPrivate(con *libvirt.Connect, name string) {
 
     xml, err := netXML.Marshal()
     if err != nil {
-        log.Fatalf("failed to marshal xml by private network: %v", err)
+        return err
     }
     net, err := con.NetworkDefineXML(xml)
     if err != nil {
-        log.Fatalf("failed to create private network: %v",err)
+        return err
     }
     err = net.SetAutostart(true)
     err = net.Create()
     if err != nil {
-        log.Fatalf("failed to start private network: %v",err)
+        return err
     }
+    return nil
 }
 
 
@@ -316,17 +319,18 @@ func CheckNetworkRange(con *libvirt.Connect, subnet string) bool {
 }
 
 
-func DeleteNetwork(con *libvirt.Connect, name string) {
+func DeleteNetwork(con *libvirt.Connect, name string) error {
     net, err := con.LookupNetworkByName(name)
     if err != nil {
-        log.Fatalf("failed to get network: %v", err)
+        return err
     }
     err = net.Destroy()
     if err != nil {
-        log.Fatalf("failed to shutdown network: %v", err)
+        return err
     }
     err = net.Undefine()
     if err != nil {
-        log.Fatalf("failed to delete network: %v", err)
+        return err
     }
+    return nil
 }

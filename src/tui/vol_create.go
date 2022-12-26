@@ -95,15 +95,23 @@ func MakePoolCreateForm(app *tview.Application, con *libvirt.Connect, view *tvie
         if b {
             // Start creating a Pool
             view.SetText("OK").SetTextColor(tcell.ColorSkyblue)
-            virt.CreatePool(name, path, con)
-
-            list.AddItem(name, "", rune(list.GetItemCount())+'0', nil)
-            list.SetCurrentItem(list.GetItemCount())
-            p := NewPool(con, name)
-            SetModal(app, con, p, page)
-            page.AddPage(name, p, true, true)
-            app.SetFocus(list)
-            page.RemovePage("Create")
+            err := virt.CreatePool(name, path, con)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to create pool: %v", err)
+                }
+            } else {
+                list.AddItem(name, "", rune(list.GetItemCount())+'0', nil)
+                list.SetCurrentItem(list.GetItemCount())
+                p := NewPool(con, name)
+                SetModal(app, con, p, page)
+                page.AddPage(name, p, true, true)
+                app.SetFocus(list)
+                page.RemovePage("Create")
+            }
         } else {
             view.SetText(ErrInfo).SetTextColor(tcell.ColorRed)
         }

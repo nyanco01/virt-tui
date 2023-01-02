@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+    "log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/nyanco01/virt-tui/src/operate"
@@ -111,13 +112,21 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
         } else if !operate.CheckBridgeSource(source) {
             view.SetText(fmt.Sprintf("[skyblue]%s [red]is already a member of the bridge interface.", source))
         } else {
-            virt.CreateNetworkByBridge(con, name, source)
-            net := virt.GetNetworkByName(con, name)
-            list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-            page.AddPage(net.Name, NewNetwork(con, net), true, true)
-
-            page.RemovePage("Create")
-            app.SetFocus(list)
+            err := virt.CreateNetworkByBridge(con, name, source)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to create bridge network: %v", err)
+                }
+            } else {
+                net := virt.GetNetworkByName(con, name)
+                list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
+                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                page.RemovePage("Create")
+                app.SetFocus(list)
+            }
         }
     })
     form.AddButton("Cancel", func() {
@@ -160,13 +169,21 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
         } else if virt.CheckNetworkRange(con, subnet) {
             view.SetText("The address range is overlapped by other NAT networks.").SetTextColor(tcell.ColorRed)
         } else {
-            virt.CreateNetworkByNAT(con, name, subnet)
-            net := virt.GetNetworkByName(con, name)
-            list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-            page.AddPage(net.Name, NewNetwork(con, net), true, true)
-
-            page.RemovePage("Create")
-            app.SetFocus(list)
+            err := virt.CreateNetworkByNAT(con, name, subnet)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to create NAT network: %v", err)
+                }
+            } else {
+                net := virt.GetNetworkByName(con, name)
+                list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
+                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                page.RemovePage("Create")
+                app.SetFocus(list)
+            }
         }
     })
     form.AddButton("Cancel", func() {
@@ -201,13 +218,22 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
         } else if !virt.CheckNetworkName(con, name) {
             view.SetText("The same network name exists.").SetTextColor(tcell.ColorRed)
         } else {
-            virt.CreateNetworkByPrivate(con, name)
-            net := virt.GetNetworkByName(con, name)
-            list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-            page.AddPage(net.Name, NewNetwork(con, net), true, true)
+            err :=virt.CreateNetworkByPrivate(con, name)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to create Private network: %v", err)
+                }
+            } else {
+                net := virt.GetNetworkByName(con, name)
+                list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
+                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                page.RemovePage("Create")
+                app.SetFocus(list)
+            }
 
-            page.RemovePage("Create")
-            app.SetFocus(list)
         }
     })
     form.AddButton("Cancel", func() {

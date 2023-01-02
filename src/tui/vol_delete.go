@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+    "log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -18,10 +19,19 @@ func MakeVolDeleteForm(app *tview.Application, con *libvirt.Connect, page *tview
 
     form.AddButton("Delete", func() {
         if delVol.attachVM == "none" {
-            virt.DeleteVolume(delVol.info.Path, con)
-            // Delete the specified volume from the volume slice
-            p.volumes = append(p.volumes[:volIndex], p.volumes[volIndex+1:]...)
-            page.RemovePage("DeleteVolume")
+            err := virt.DeleteVolume(delVol.info.Path, con)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to delete volume: %v", err)
+                }
+            } else {
+                // Delete the specified volume from the volume slice
+                p.volumes = append(p.volumes[:volIndex], p.volumes[volIndex+1:]...)
+                page.RemovePage("DeleteVolume")
+            }
         } else {
             view.SetText(fmt.Sprintf("The volume is attached to the following VMs: [red::]%s", delVol.attachVM))
         }
@@ -58,11 +68,21 @@ func MakePoolDeleteForm(app *tview.Application, con *libvirt.Connect, page *tvie
         b, vmName := virt.CheckDeletePoolRequest(name, con)
         if b {
             view.SetText(fmt.Sprintf("Delete Pool [orange]%s", name))
-            virt.DeletePool(name, con)
-            page.RemovePage(name)
-            page.RemovePage("DeletePool")
-            list.RemoveItem(list.GetCurrentItem())
-            app.SetFocus(list)
+            err := virt.DeletePool(name, con)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to Delete pool by %s: %v", name, err)
+                }
+            } else {
+                page.RemovePage(name)
+                page.RemovePage("DeletePool")
+                list.RemoveItem(list.GetCurrentItem())
+                app.SetFocus(list)
+            }
+
         } else {
             view.SetText(fmt.Sprintf("Volumes in the Pool are attached to \nthe following VMs: [red]%s", vmName))
         }

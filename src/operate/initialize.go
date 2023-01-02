@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+    "os/exec"
 	"strings"
 )
 
@@ -50,9 +51,33 @@ func ShellInit() {
 }
 
 
+func OSTypeListInit() {
+    ps, err := exec.Command("osinfo-query", "os").CombinedOutput()
+    if err != nil {
+            log.Fatalf("failed to get os list: %v", err)
+    }
+    s := string(ps)
+    osList = []string{}
+    if strings.Contains(s, "ubuntu20.04") {
+        osList = append(osList, "Ubuntu20.04")
+    }
+    if strings.Contains(s, "ubuntu22.04") {
+        osList = append(osList, "Ubuntu22.04")
+    }
+    if strings.Contains(s, "centos-stream8") {
+        osList = append(osList, "CentOS8")
+    }
+    if strings.Contains(s, "centos-stream9") {
+        osList = append(osList, "CentOS9")
+    }
+
+}
+
+
 func Initialize() {
     FolderInit()
     ShellInit()
+    OSTypeListInit()
     /*
     err := exec.Command("export", "COLORTERM=24bit").Run()
     if err != nil {

@@ -1,10 +1,7 @@
 package tui
 
 import (
-	//"log"
-
-	//"fmt"
-
+	"log"
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"
@@ -27,12 +24,20 @@ func MakeNetDeleteForm(app *tview.Application, con *libvirt.Connect, page *tview
                 operate.FileDelete("./tmp/shell/" + name + ".sh")
                 operate.DeleteBridgeIF(name)
             }
-            virt.DeleteNetwork(con, name)
-
-            page.RemovePage(name)
-            page.RemovePage("Delete")
-            list.RemoveItem(list.GetCurrentItem())
-            app.SetFocus(list)
+            err := virt.DeleteNetwork(con, name)
+            if err != nil {
+                if virtErr, ok := err.(libvirt.Error); ok {
+                    view.SetText(virtErr.Message)
+                    view.SetTextColor(tcell.ColorRed)
+                } else {
+                    log.Fatalf("failed to create bridge network: %v", err)
+                }
+            } else {
+                page.RemovePage(name)
+                page.RemovePage("Delete")
+                list.RemoveItem(list.GetCurrentItem())
+                app.SetFocus(list)
+            }
         }
     })
     form.AddButton("Cancel", func() {

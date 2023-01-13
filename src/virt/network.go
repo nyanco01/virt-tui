@@ -90,6 +90,12 @@ func CheckContainDomIF(con *libvirt.Connect, name string) bool {
             log.Fatalf("failed to unmarshal xml by domain: %v", err)
         }
         for _, iface := range domXML.Devices.Interfaces {
+            if iface.Source == nil {
+                continue
+            }
+            if iface.Source.Bridge == nil {
+                continue
+            }
             if iface.Source.Bridge.Bridge == brName {
                 return true
             }

@@ -327,6 +327,7 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
                 }
                 if f := e.items[e.clickItemIndex].GetSelectedFunc(); f != nil {
                     f()
+                    consumed = true
                 }
             }
         }

@@ -217,6 +217,11 @@ func (c *CPU)Update(u float64) {
     c.usage[0] = u
 }
 
+func (c *CPU)GetLastStatus() (float64, int) {
+    return c.usage[0], int(c.vcpus)
+}
+
+
 // -------------------------------- Memory --------------------------------
 func NewMemory() *Mem {
     ug := [150][500]string{}
@@ -729,7 +734,6 @@ func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
     vmstatus.AddItem(disk, 5, 1, false)
     vmstatus.AddItem(nic, 0, 1, false)
 
-
     go func() {
         VMStatusUpdate(app, vmstatus, cpu, mem, nic, vm)
     }()
@@ -740,14 +744,14 @@ func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
 
 func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem, nic *NIC, vm *virt.VM) {
     sec := time.Second
-
-    time.Sleep(sec)
     if b, _ := vm.Domain.IsActive(); !b {
         if flex.GetItemCount() == 4 {
             flex.Clear()
             flex.AddItem(NotUpVM(vm.Name), 0, 1, false)
         }
     }
+
+    time.Sleep(sec)
 
     var timeCnt uint64 = 0
     for range time.Tick(sec) {
@@ -759,22 +763,18 @@ func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem
 
     var oldUsage uint64
     if b, _ := vm.Domain.IsActive(); b {
-        oldUsage, _ = virt.GetCPUUsage(vm.Domain)  // cpu
+        oldUsage, _, _ = virt.GetCPUUsage(vm.Domain)  // cpu
     }
 
     for range time.Tick(sec) {
         //timeCnt++
         b, _ := vm.Domain.IsActive()
         if b {
-            if !vm.Status {
-                vm.Status = true
+            newUsage, cnt, err := virt.GetCPUUsage(vm.Domain)  // cpu
+            if err != nil {
+                _, cnt = cpu.GetLastStatus()
+                newUsage = oldUsage
             }
-            /*
-            if timeCnt < 4 {
-                continue
-            }
-            */
-            newUsage, cnt := virt.GetCPUUsage(vm.Domain)  // cpu
 
             max, used := virt.GetMemUsed(vm.Domain)  // memory
             app.QueueUpdateDraw(func() {
@@ -791,10 +791,5 @@ func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem
                 flex.AddItem(NotUpVM(vm.Name), 0, 1, false)
             }
         }
-        /*
-        if !VirtualMachineStatus[vm.Name] {
-            break
-        }
-        */
     }
 }

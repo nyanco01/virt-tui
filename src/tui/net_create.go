@@ -123,7 +123,9 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
             } else {
                 net := virt.GetNetworkByName(con, name)
                 list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                network := NewNetwork(con, net)
+                page.AddPage(net.Name, network, true, true)
+                go NetworkStatusUpdate(app, network, con, net)
                 page.RemovePage("Create")
                 app.SetFocus(list)
             }
@@ -180,7 +182,9 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
             } else {
                 net := virt.GetNetworkByName(con, name)
                 list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                network := NewNetwork(con, net)
+                page.AddPage(net.Name, network, true, true)
+                go NetworkStatusUpdate(app, network, con, net)
                 page.RemovePage("Create")
                 app.SetFocus(list)
             }
@@ -229,7 +233,9 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
             } else {
                 net := virt.GetNetworkByName(con, name)
                 list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                network := NewNetwork(con, net)
+                page.AddPage(net.Name, network, true, true)
+                go NetworkStatusUpdate(app, network, con, net)
                 page.RemovePage("Create")
                 app.SetFocus(list)
             }

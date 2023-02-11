@@ -751,23 +751,12 @@ func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem
         }
     }
 
-    time.Sleep(sec)
-
-    var timeCnt uint64 = 0
-    for range time.Tick(sec) {
-        if timeCnt >= 3 {
-            break
-        }
-        timeCnt++
-    }
-
     var oldUsage uint64
     if b, _ := vm.Domain.IsActive(); b {
         oldUsage, _, _ = virt.GetCPUUsage(vm.Domain)  // cpu
     }
 
     for range time.Tick(sec) {
-        //timeCnt++
         b, _ := vm.Domain.IsActive()
         if b {
             newUsage, cnt, err := virt.GetCPUUsage(vm.Domain)  // cpu

@@ -2,12 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	libvirt "libvirt.org/go/libvirt"
 	"github.com/nyanco01/virt-tui/src/virt"
+	libvirt "libvirt.org/go/libvirt"
 )
 
 
@@ -40,9 +42,9 @@ type Pool struct {
 }
 
 
-func NewPool(con *libvirt.Connect, n string) *Pool {
-    path, capa, allo := virt.GetPoolInfo(con, n)
-    infos := virt.GetDisksByPool(con, n)
+func NewPool(con *libvirt.Connect, name string) *Pool {
+    path, capa, allo := virt.GetPoolInfo(con, name)
+    infos := virt.GetDisksByPool(con, name)
     vols := []Volume{}
     for _, info := range infos {
         n := virt.GetBelongVM(con, info.Path)
@@ -53,7 +55,7 @@ func NewPool(con *libvirt.Connect, n string) *Pool {
     }
     return &Pool{
         Box:                tview.NewBox(),
-        name:               n,
+        name:               name,
         path:               path,
         capacity:           capa,
         allocation:         allo,
@@ -254,6 +256,26 @@ func(p *Pool)Draw(screen tcell.Screen) {
 }
 
 
+func (p *Pool)Update(con *libvirt.Connect, name string) *Pool {
+    err := virt.PoolRefreshByName(con, name)
+    if err != nil {
+        return p
+    }
+    p.path, p.capacity, p.allocation = virt.GetPoolInfo(con, name)
+    infos := virt.GetDisksByPool(con, name)
+    vols := []Volume{}
+    for _, info := range infos {
+        n := virt.GetBelongVM(con, info.Path)
+        vols = append(vols, Volume{
+            info:       info,
+            attachVM:   n,
+        })
+    }
+    p.volumes = vols
+    return p
+}
+
+
 func (p *Pool)SetCreateVolFunc(handler func()) *Pool {
     p.selectedCreateFunc = handler
     return p
@@ -321,6 +343,26 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
     })
 }
 
+
+func PoolStatusUpdate(app *tview.Application, p *Pool, con *libvirt.Connect, name string) {
+    time.Sleep(time.Second * 3)
+    for range time.Tick(time.Second * 3) {
+        _, err := con.LookupStoragePoolByName(name)
+        if err != nil {
+            if virtErr, ok := err.(libvirt.Error); ok {
+                text := "no storage pool with matching name"
+                if strings.Contains(virtErr.Message, text) {
+                    break
+                }
+            }
+        }
+        app.QueueUpdateDraw(func() {
+            p.Update(con, name)
+        })
+    }
+}
+
+
 // Added a function to display Modal to Primitive that displays Pool information.
 func SetModal(app *tview.Application, con *libvirt.Connect, pool *Pool, page *tview.Pages) {
     pool.SetCreateVolFunc(func() {
@@ -345,6 +387,7 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
     for i, name := range poolInfo.Name {
         list.AddItem(name, "", rune(i+'0'), nil)
         pool := NewPool(con, name)
+        go PoolStatusUpdate(app, pool, con, name)
         SetModal(app, con, pool, page)
         page.AddPage(name, pool, true, true)
     }

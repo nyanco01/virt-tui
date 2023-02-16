@@ -734,9 +734,7 @@ func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
     vmstatus.AddItem(disk, 5, 1, false)
     vmstatus.AddItem(nic, 0, 1, false)
 
-    go func() {
-        VMStatusUpdate(app, vmstatus, cpu, mem, nic, vm)
-    }()
+    go VMStatusUpdate(app, vmstatus, cpu, mem, nic, vm)
 
     return vmstatus
 }

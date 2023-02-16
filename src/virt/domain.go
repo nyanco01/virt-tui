@@ -3,6 +3,7 @@ package virt
 import (
 	"log"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/nyanco01/virt-tui/src/constants"
@@ -69,6 +70,9 @@ func butVMItemCheck(item string) string {
 }
 
 
+
+
+
 func GetCPUUsage(d *libvirt.Domain) (uint64, int, error) {
     cpuGuest, err := d.GetVcpus()
     if err != nil {
@@ -128,33 +132,6 @@ func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
     return
 }
 
-/*
-i'm still trying to figure out how to display it, so right now it's in vm and 
-there are multiple returns the last state of the nic.
-(this is a very bad implementation and will be fixed as soon as possible.)
-*/
-/*
-func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
-    xml, err := d.GetXMLDesc(0)
-    if err != nil {
-        log.Fatalf("failed to open xml: %v", err)
-    }
-    var xmlDomain libvirtxml.Domain
-    xmlDomain.Unmarshal(xml)
-
-
-    var mac string
-    for _, iface := range xmlDomain.Devices.Interfaces {
-        mac = iface.MAC.Address
-    }
-    ifState, err := d.InterfaceStats(mac)
-    if err != nil {
-        log.Fatalf("failed to get iface state: %v", err)
-    }
-
-    return ifState.TxBytes, ifState.RxBytes
-}
-*/
 
 func GetTrafficByMAC(d *libvirt.Domain, mac string) (txByte, rxByte int64) {
     ifState, err := d.InterfaceStats(mac)
@@ -504,7 +481,7 @@ func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
 }
 
 
-func StartDomain(dom *libvirt.Domain) {
+func StartDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu *sync.Mutex) {
     err := dom.Create()
     if err != nil {
         log.Fatalf("failed to start domain: %v", err)
@@ -513,10 +490,33 @@ func StartDomain(dom *libvirt.Domain) {
     for range time.Tick(dur) {
         b, _ := dom.IsActive()
         if b {
+            done <- "done"
+            mu.Lock()
+            wg.Done()
+            mu.Unlock()
             break
         }
     }
 }
+
+
+func ShutdownDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu *sync.Mutex) {
+    for {
+        _ = dom.Shutdown()
+
+        running, _ := dom.IsActive()
+
+        if !running {
+            done <- "done"
+            mu.Lock()
+            wg.Done()
+            mu.Unlock()
+            break
+        }
+        time.Sleep(500 * time.Millisecond)
+    }
+}
+
 
 
 func DeleteDomain(dom *libvirt.Domain) {

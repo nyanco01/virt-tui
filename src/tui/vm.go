@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -10,6 +11,45 @@ import (
 
 	"github.com/nyanco01/virt-tui/src/virt"
 )
+
+
+func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, text string, done <-chan string, wg *sync.WaitGroup, mu *sync.Mutex) tview.Primitive {
+    view := tview.NewTextView()
+    view.SetDynamicColors(true)
+    view.SetTextColor(tcell.ColorYellow)
+    view.SetBorder(true)
+    view.SetTextAlign(tview.AlignCenter)
+
+    go func() {
+        spin := []rune(`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`)
+        cnt := 0
+        mu.Lock()
+        wg.Add(1)
+        mu.Unlock()
+        for {
+            select {
+            case <-done:
+                page.RemovePage("Loading")
+                mu.Lock()
+                wg.Done()
+                mu.Unlock()
+                break
+            default:
+                time.Sleep(200 * time.Millisecond)
+                viewtext := string(spin[cnt]) + " " + fmt.Sprintf("[white]%s", text)
+                app.QueueUpdateDraw(func() {
+                    view.SetText(viewtext)
+                })
+                cnt++
+                if cnt == len(spin)-1 {
+                    cnt = 0
+                }
+            }
+        }
+    }()
+
+    return pageModal(view, len(text)+10, 3)
+}
 
 
 //Dedicated Modal for placing specific Primitive items inside.
@@ -38,6 +78,58 @@ func SetButtonDefaultStyle(bt *tview.Button, color tcell.Color) *tview.Button {
     })
 
     return bt
+}
+
+
+func MakeNotification(app *tview.Application, page *tview.Pages, list *tview.List, text string) tview.Primitive {
+    view := tview.NewTextView()
+    view.SetDynamicColors(true)
+    view.SetText(text)
+
+    form := tview.NewForm()
+    form.SetButtonBackgroundColor(tcell.NewRGBColor(80, 80, 80))
+    form.SetButtonsAlign(tview.AlignCenter)
+    form.AddButton(" OK ", func() {
+        page.RemovePage("Notification")
+        app.SetFocus(list)
+    })
+    flex := tview.NewFlex().SetDirection(tview.FlexRow)
+    flex.SetBorder(true)
+
+    flex.AddItem(view, 2, 0, false)
+    flex.AddItem(form, 3, 0, true)
+
+    return pageModal(flex, 40, 7)
+}
+
+
+func MakeDeleteVMMenu(app *tview.Application, vm *virt.VM, page *tview.Pages, list *tview.List) tview.Primitive {
+    view := tview.NewTextView()
+    view.SetDynamicColors(true)
+    view.SetText(fmt.Sprintf("Virtual machine name to be \n deleted : [red]%s", vm.Name))
+
+    form := tview.NewForm()
+    form.SetButtonBackgroundColor(tcell.NewRGBColor(80, 80, 80))
+    form.SetButtonsAlign(tview.AlignCenter)
+    form.AddButton(" OK ", func() {
+        virt.DeleteDomain(vm.Domain)
+        page.RemovePage(vm.Name)
+        list.RemoveItem(list.GetCurrentItem())
+        page.RemovePage("Delete")
+        app.SetFocus(list)
+    })
+    form.AddButton("Cancel", func() {
+        page.RemovePage("Delete")
+        app.SetFocus(list)
+    })
+
+    flex := tview.NewFlex().SetDirection(tview.FlexRow)
+    flex.SetBorder(true)
+
+    flex.AddItem(view, 2, 0, false)
+    flex.AddItem(form, 3, 0, true)
+
+    return pageModal(flex, 40, 7)
 }
 
 
@@ -106,11 +198,27 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         btReboot = SetButtonDefaultStyle(btReboot, tcell.Color56.TrueColor())
 
         btShutdown.SetSelectedFunc(func() {
-            _ = vm.Domain.Shutdown()
-            time.Sleep(time.Millisecond * 500)
-            page.RemovePage("OnOff")
-            vm.Status = false
-            app.SetFocus(list)
+            var wg = new(sync.WaitGroup)
+            var mu = new(sync.Mutex)
+            mu.Lock()
+            // これなんで1じゃないの?
+            wg.Add(2)
+            mu.Unlock()
+            done := make(chan string)
+
+            loading := MakeLoading(app, page, list, "VM is shutting down", done, wg, mu)
+            page.AddPage("Loading", loading, true, true)
+            page.ShowPage("Loading")
+
+            go virt.ShutdownDomain(vm.Domain, done, wg, mu)
+
+            go func() {
+                page.RemovePage("OnOff")
+                wg.Wait()
+                vm.Status = false
+                app.SetFocus(list)
+            }()
+
         })
         btDestroy.SetSelectedFunc(func() {
             _ = vm.Domain.Destroy()
@@ -137,19 +245,35 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         btReboot = SetButtonDefaultStyle(btReboot, tcell.ColorDarkSlateGray)
 
         btStart.SetSelectedFunc(func() {
-            virt.StartDomain(vm.Domain)
-            page.RemovePage("OnOff")
-            vm.Status = true
-            page.RemovePage(vm.Name)
-            page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)
-            list.SetItemText(list.GetCurrentItem(), vm.Name, "")
-            app.SetFocus(list)
+            var wg = new(sync.WaitGroup)
+            var mu = new(sync.Mutex)
+            mu.Lock()
+            wg.Add(1)
+            mu.Unlock()
+            done := make(chan string)
+
+            loading := MakeLoading(app, page, list, "VM is starting", done, wg, mu)
+            page.AddPage("Loading", loading, true, true)
+            page.ShowPage("Loading")
+
+            go virt.StartDomain(vm.Domain, done, wg, mu)
+            
+            go func(){
+                page.RemovePage("OnOff")
+                wg.Wait()
+                vm.Status = true
+                page.RemovePage(vm.Name)
+                page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)
+                list.SetItemText(list.GetCurrentItem(), vm.Name, "")
+                app.SetFocus(list)
+            }()
         })
         btDelete.SetSelectedFunc(func() {
-            virt.DeleteDomain(vm.Domain)
-            page.RemovePage(vm.Name)
-            list.RemoveItem(list.GetCurrentItem())
-            app.SetFocus(list)
+            delPage := MakeDeleteVMMenu(app, vm, page, list)
+            page.AddPage("Delete", delPage, true, true)
+            page.RemovePage("OnOff")
+            page.ShowPage("Delete")
+            app.SetFocus(delPage)
         })
         btEdit.SetSelectedFunc(func() {
             page.RemovePage("OnOff")

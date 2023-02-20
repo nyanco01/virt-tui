@@ -14,21 +14,6 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
-const (
-    kilo = constants.Kilo
-    mega = constants.Mega
-    giga = constants.Giga
-    kibi = constants.Kibi
-    mebi = constants.Mebi
-    gibi = constants.Gibi
-)
-
-const (
-    leftTriangle    = constants.LeftTriangle
-    rightTraiangle  = constants.RightTraiangle
-    upTraiangle     = constants.UpTraiangle
-    downTraiangle   = constants.DownTraiangle
-)
 
 var VirtualMachineStatus    map[string]bool
 
@@ -68,12 +53,6 @@ type NIC struct {
     bwGraphDown     [150][500]string
     ifList          []NICMember
     index           int
-    /*
-    bwUp            [500]int64
-    bwDown          [500]int64
-    name            string
-    MACAddr         string
-    */
 }
 
 
@@ -184,9 +163,6 @@ func (c *CPU) Draw(screen tcell.Screen) {
         }
         graph = append(graph, tmpLine)
     }
-
-    // draw
-
     tview.Print(screen, "CPU", x, y-1, w, tview.AlignCenter, tcell.NewRGBColor(0, 255, 127))
     tview.Print(screen, constants.LeftTop, x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(0, 255, 127))
     tview.Print(screen, constants.RightTop, x, y-1, w, tview.AlignRight, tcell.NewRGBColor(0, 255, 127))

@@ -488,8 +488,8 @@ func StartDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu
     }
     dur := time.Millisecond * 200
     for range time.Tick(dur) {
-        b, _ := dom.IsActive()
-        if b {
+        running, _ := dom.IsActive()
+        if running {
             done <- "done"
             mu.Lock()
             wg.Done()
@@ -518,12 +518,10 @@ func ShutdownDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup,
 }
 
 
-
 func DeleteDomain(dom *libvirt.Domain) {
     err := dom.Undefine()
     if err != nil {
         log.Fatalf("failed to Delete Domain: %v", err)
     }
 }
-
 

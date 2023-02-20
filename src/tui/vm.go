@@ -187,6 +187,7 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         }
         return event
     })
+
     if vm.Status {
         // Disable button
         btStart = SetButtonDefaultStyle(btStart, tcell.ColorDarkSlateGray)
@@ -233,7 +234,6 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             page.RemovePage("OnOff")
             app.SetFocus(list)
         })
-
     } else {
         // Enable button
         btStart = SetButtonDefaultStyle(btStart, tcell.ColorGreen)

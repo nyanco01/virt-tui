@@ -21,7 +21,7 @@ func MakeVolumeCreateForm(app * tview.Application, con *libvirt.Connect, view *t
     form.AddInputField("Volume name", "", 20, nil, nil)
 
     // Volume size      item index 1
-    form.AddInputField(fmt.Sprintf("Volume size [orange]GB (max %.1f GB)", float64(available)/1024/1024/1024), "", 6, nil, nil)
+    form.AddInputField(fmt.Sprintf("Volume size [orange]GB (max %.1f GB)", float64(available)/float64(gibi)), "", 6, nil, nil)
     form.GetFormItem(1).(*tview.InputField).SetAcceptanceFunc(tview.InputFieldInteger)
 
     form.AddButton("Create", func() {

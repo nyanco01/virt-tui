@@ -84,14 +84,14 @@ func(p *Pool)Draw(screen tcell.Screen) {
 
     tview.Print(screen, fmt.Sprintf("Name       : %s", p.name), x+3, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("Path       : %s", p.path), x+3, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/1024/1024/1024), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/1024/1024/1024), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/float64(gibi)), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/float64(gibi)), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
     var avaPool float64
     if p.capacity <= p.allocation {
         avaPool = 0
     } else {
-        avaPool = float64(p.capacity - p.allocation)/1024/1024/1024
+        avaPool = float64(p.capacity - p.allocation)/float64(gibi)
     }
     tview.Print(screen, fmt.Sprintf("available  : %.2f GB", avaPool), x+50, y+2, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, PoolBar, x+3, y+4, w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
@@ -153,12 +153,12 @@ func(p *Pool)Draw(screen tcell.Screen) {
             usageVol := float64(vol.info.Allocation) / float64(vol.info.Capacity)
             tview.Print(screen, fmt.Sprintf("Attached VM : %s", vol.attachVM), x+5, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             tview.Print(screen, fmt.Sprintf("Path        : %s", vol.info.Path), x+5, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(vol.info.Capacity)/1024/1024/1024), x+55, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(vol.info.Allocation)/1024/1024/1024), x+55, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(vol.info.Capacity)/float64(gibi)), x+55, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(vol.info.Allocation)/float64(gibi)), x+55, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             if vol.info.Capacity <= vol.info.Allocation {
                 avaVol = 0
             } else {
-                avaVol = float64(vol.info.Capacity - vol.info.Allocation)/1024/1024/1024
+                avaVol = float64(vol.info.Capacity - vol.info.Allocation)/float64(gibi)
             }
             tview.Print(screen, fmt.Sprintf("Available   : %.2f GB", avaVol), x+55, volY+2+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             tview.Print(screen, fmt.Sprintf("Used : %.2f%%",usageVol*100), x+5, volY+3+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
@@ -219,7 +219,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
             switch cnt % 6 {
             case 0:
                 tview.Print(screen, fmt.Sprintf("Attached VM : %s", p.volumes[vols].attachVM), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-                tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(p.volumes[vols].info.Capacity)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(p.volumes[vols].info.Capacity)/float64(gibi)), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
                 if vols == l {
                     tview.Print(screen, "└─", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
                 } else {
@@ -227,12 +227,12 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 }
             case 1:
                 tview.Print(screen, fmt.Sprintf("Path        : %s", p.volumes[vols].info.Path), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-                tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(p.volumes[vols].info.Allocation)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(p.volumes[vols].info.Allocation)/float64(gibi)), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 2:
                 if p.volumes[vols].info.Capacity <= p.volumes[vols].info.Allocation {
                     avaVol = 0
                 } else {
-                    avaVol = float64(p.volumes[vols].info.Capacity - p.volumes[vols].info.Allocation)/1024/1024/1024
+                    avaVol = float64(p.volumes[vols].info.Capacity - p.volumes[vols].info.Allocation)/float64(gibi)
                 }
                 tview.Print(screen, fmt.Sprintf("Available   : %.2f GB", avaVol), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 3:

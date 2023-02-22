@@ -1,5 +1,5 @@
 # virt-tui
-<img src="https://user-images.githubusercontent.com/112300116/189452942-6abe3c3d-87e6-4c88-ada1-3e9fa54c3900.png" width="600">
+<img src="https://user-images.githubusercontent.com/112300116/220525542-95a7056c-bdb7-48bb-8932-cc6d56e910b8.png" width="600">
 virt-tuiはlibvirtや操作VMの状態確認を行えるTUIアプリケーションです。  
 virt-tuiはvirt-managerのように簡単にlibvirtを操作できることを目指して作成されています。(現時点ではほとんど出来ていません。)
 

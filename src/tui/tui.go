@@ -7,8 +7,26 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	libvirt "libvirt.org/go/libvirt"
+
+	"github.com/nyanco01/virt-tui/src/constants"
 )
 
+
+const (
+    kilo = constants.Kilo
+    mega = constants.Mega
+    giga = constants.Giga
+    kibi = constants.Kibi
+    mebi = constants.Mebi
+    gibi = constants.Gibi
+)
+
+const (
+    leftTriangle    = constants.LeftTriangle
+    rightTraiangle  = constants.RightTraiangle
+    upTraiangle     = constants.UpTraiangle
+    downTraiangle   = constants.DownTraiangle
+)
 
 func still() *tview.Box {
     box := tview.NewBox().SetBorder(false)

@@ -28,7 +28,9 @@ const (
 
 const (
     CPUAffinity         string = "Requested operation is not valid: cpu affinity is not supported"
+    CannotRetrieveVCPU  string = "Requested operation is not valid: cannot retrieve vcpu information for inactive domain"
     AlreadyStarted      string = "Requested operation is not valid: domain is already running"
     DomainNotRunning    string = "Requested operation is not valid: domain is not running"
     UnableReadMonitor   string = "Unable to read from monitor: Connection reset by peer"
+    IFNotFound          string = "internal error: /proc/net/dev: Interface not found"
 )

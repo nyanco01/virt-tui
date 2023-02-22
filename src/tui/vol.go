@@ -2,12 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 
-	libvirt "libvirt.org/go/libvirt"
 	"github.com/nyanco01/virt-tui/src/virt"
+	libvirt "libvirt.org/go/libvirt"
 )
 
 
@@ -40,9 +42,9 @@ type Pool struct {
 }
 
 
-func NewPool(con *libvirt.Connect, n string) *Pool {
-    path, capa, allo := virt.GetPoolInfo(con, n)
-    infos := virt.GetDisksByPool(con, n)
+func NewPool(con *libvirt.Connect, name string) *Pool {
+    path, capa, allo := virt.GetPoolInfo(con, name)
+    infos := virt.GetDisksByPool(con, name)
     vols := []Volume{}
     for _, info := range infos {
         n := virt.GetBelongVM(con, info.Path)
@@ -53,7 +55,7 @@ func NewPool(con *libvirt.Connect, n string) *Pool {
     }
     return &Pool{
         Box:                tview.NewBox(),
-        name:               n,
+        name:               name,
         path:               path,
         capacity:           capa,
         allocation:         allo,
@@ -82,14 +84,14 @@ func(p *Pool)Draw(screen tcell.Screen) {
 
     tview.Print(screen, fmt.Sprintf("Name       : %s", p.name), x+3, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, fmt.Sprintf("Path       : %s", p.path), x+3, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/1024/1024/1024), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-    tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/1024/1024/1024), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("Capacity   : %.2f GB", float64(p.capacity)/float64(gibi)), x+50, y, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+    tview.Print(screen, fmt.Sprintf("allocation : %.2f GB", float64(p.allocation)/float64(gibi)), x+50, y+1, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
 
     var avaPool float64
     if p.capacity <= p.allocation {
         avaPool = 0
     } else {
-        avaPool = float64(p.capacity - p.allocation)/1024/1024/1024
+        avaPool = float64(p.capacity - p.allocation)/float64(gibi)
     }
     tview.Print(screen, fmt.Sprintf("available  : %.2f GB", avaPool), x+50, y+2, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
     tview.Print(screen, PoolBar, x+3, y+4, w, tview.AlignLeft, tcell.NewRGBColor(80, 80, 80))
@@ -151,12 +153,12 @@ func(p *Pool)Draw(screen tcell.Screen) {
             usageVol := float64(vol.info.Allocation) / float64(vol.info.Capacity)
             tview.Print(screen, fmt.Sprintf("Attached VM : %s", vol.attachVM), x+5, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             tview.Print(screen, fmt.Sprintf("Path        : %s", vol.info.Path), x+5, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(vol.info.Capacity)/1024/1024/1024), x+55, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-            tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(vol.info.Allocation)/1024/1024/1024), x+55, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(vol.info.Capacity)/float64(gibi)), x+55, volY+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+            tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(vol.info.Allocation)/float64(gibi)), x+55, volY+1+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             if vol.info.Capacity <= vol.info.Allocation {
                 avaVol = 0
             } else {
-                avaVol = float64(vol.info.Capacity - vol.info.Allocation)/1024/1024/1024
+                avaVol = float64(vol.info.Capacity - vol.info.Allocation)/float64(gibi)
             }
             tview.Print(screen, fmt.Sprintf("Available   : %.2f GB", avaVol), x+55, volY+2+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             tview.Print(screen, fmt.Sprintf("Used : %.2f%%",usageVol*100), x+5, volY+3+(i*6), w, tview.AlignLeft, tcell.ColorWhiteSmoke)
@@ -217,7 +219,7 @@ func(p *Pool)Draw(screen tcell.Screen) {
             switch cnt % 6 {
             case 0:
                 tview.Print(screen, fmt.Sprintf("Attached VM : %s", p.volumes[vols].attachVM), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-                tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(p.volumes[vols].info.Capacity)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Capacity    : %.2f GB", float64(p.volumes[vols].info.Capacity)/float64(gibi)), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
                 if vols == l {
                     tview.Print(screen, "└─", x+1, i, w, tview.AlignLeft, tcell.ColorLightYellow)
                 } else {
@@ -225,12 +227,12 @@ func(p *Pool)Draw(screen tcell.Screen) {
                 }
             case 1:
                 tview.Print(screen, fmt.Sprintf("Path        : %s", p.volumes[vols].info.Path), x+5, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
-                tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(p.volumes[vols].info.Allocation)/1024/1024/1024), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
+                tview.Print(screen, fmt.Sprintf("Allocation  : %.2f GB", float64(p.volumes[vols].info.Allocation)/float64(gibi)), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 2:
                 if p.volumes[vols].info.Capacity <= p.volumes[vols].info.Allocation {
                     avaVol = 0
                 } else {
-                    avaVol = float64(p.volumes[vols].info.Capacity - p.volumes[vols].info.Allocation)/1024/1024/1024
+                    avaVol = float64(p.volumes[vols].info.Capacity - p.volumes[vols].info.Allocation)/float64(gibi)
                 }
                 tview.Print(screen, fmt.Sprintf("Available   : %.2f GB", avaVol), x+55, i, w, tview.AlignLeft, tcell.ColorWhiteSmoke)
             case 3:
@@ -251,6 +253,26 @@ func(p *Pool)Draw(screen tcell.Screen) {
 
         p.oldheight = h
     }
+}
+
+
+func (p *Pool)Update(con *libvirt.Connect, name string) *Pool {
+    err := virt.PoolRefreshByName(con, name)
+    if err != nil {
+        return p
+    }
+    p.path, p.capacity, p.allocation = virt.GetPoolInfo(con, name)
+    infos := virt.GetDisksByPool(con, name)
+    vols := []Volume{}
+    for _, info := range infos {
+        n := virt.GetBelongVM(con, info.Path)
+        vols = append(vols, Volume{
+            info:       info,
+            attachVM:   n,
+        })
+    }
+    p.volumes = vols
+    return p
 }
 
 
@@ -321,6 +343,26 @@ func (p *Pool)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
     })
 }
 
+
+func PoolStatusUpdate(app *tview.Application, p *Pool, con *libvirt.Connect, name string) {
+    time.Sleep(time.Second * 3)
+    for range time.Tick(time.Second * 3) {
+        _, err := con.LookupStoragePoolByName(name)
+        if err != nil {
+            if virtErr, ok := err.(libvirt.Error); ok {
+                text := "no storage pool with matching name"
+                if strings.Contains(virtErr.Message, text) {
+                    break
+                }
+            }
+        }
+        app.QueueUpdateDraw(func() {
+            p.Update(con, name)
+        })
+    }
+}
+
+
 // Added a function to display Modal to Primitive that displays Pool information.
 func SetModal(app *tview.Application, con *libvirt.Connect, pool *Pool, page *tview.Pages) {
     pool.SetCreateVolFunc(func() {
@@ -345,6 +387,7 @@ func MakeVolMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
     for i, name := range poolInfo.Name {
         list.AddItem(name, "", rune(i+'0'), nil)
         pool := NewPool(con, name)
+        go PoolStatusUpdate(app, pool, con, name)
         SetModal(app, con, pool, page)
         page.AddPage(name, pool, true, true)
     }

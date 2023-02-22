@@ -3,6 +3,7 @@ package virt
 import (
 	"log"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/nyanco01/virt-tui/src/constants"
@@ -13,8 +14,10 @@ import (
 
 const (
     cpuaffi         = constants.CPUAffinity
+    vcpuinfo        = constants.CannotRetrieveVCPU
     domnotrunning   = constants.DomainNotRunning
     readmonitor     = constants.UnableReadMonitor
+    ifnotfound      = constants.IFNotFound
 )
 
 var VMStatus        map [string]*VM
@@ -67,15 +70,20 @@ func butVMItemCheck(item string) string {
 }
 
 
-func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
+
+
+
+func GetCPUUsage(d *libvirt.Domain) (uint64, int, error) {
     cpuGuest, err := d.GetVcpus()
-    //var errCPUaffi error = errors.New("")
     if err != nil {
         if virtErr, ok := err.(libvirt.Error); ok {
             if virtErr.Message == cpuaffi {
-                return 1, 1
+                return 0, 0, err
+            } else if virtErr.Message == vcpuinfo {
+                return 0, 0, err
             } else {
-                log.Fatalf("failed to get cpu status: %v", err)
+                //log.Fatalf("failed to get cpu status: %v", err)
+                return 0, 0, err
             }
         }
     }
@@ -87,7 +95,7 @@ func GetCPUUsage(d *libvirt.Domain) (uint64, int) {
         cnt++
     }
 
-    return all, cnt
+    return all, cnt, nil
 }
 
 
@@ -100,7 +108,10 @@ func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
                 used = 100
                 return
             } else {
-                log.Fatalf("failed to get memory: %v", err)
+                //log.Fatalf("failed to get memory: %v", err)
+                max = 1000
+                used = 100
+                return
             }
         }
     }
@@ -122,42 +133,23 @@ func GetMemUsed(d *libvirt.Domain) (max, used uint64) {
 }
 
 
-func GetNICStatus(d *libvirt.Domain) (txByte, rxByte int64) {
-    xml, err := d.GetXMLDesc(0)
-    if err != nil {
-        log.Fatalf("failed to open xml: %v", err)
-    }
-    var xmlDomain libvirtxml.Domain
-    xmlDomain.Unmarshal(xml)
-
-    /*
-    I'm still trying to figure out how to display it, so right now it's in VM and 
-    there are multiple Returns the last state of the NIC.
-    (This is a very bad implementation and will be fixed as soon as possible.)
-    */
-    var mac string
-    for _, iface := range xmlDomain.Devices.Interfaces {
-        mac = iface.MAC.Address
-    }
-    ifState, err := d.InterfaceStats(mac)
-    if err != nil {
-        log.Fatalf("failed to get iface state: %v", err)
-    }
-
-    return ifState.TxBytes, ifState.RxBytes
-}
-
-
 func GetTrafficByMAC(d *libvirt.Domain, mac string) (txByte, rxByte int64) {
     ifState, err := d.InterfaceStats(mac)
     if err != nil {
         if virtErr, ok := err.(libvirt.Error); ok {
             if virtErr.Message == domnotrunning {
-                txByte = 10000
-                rxByte = 10000
+                txByte = 0
+                rxByte = 0
+                return
+            } else if virtErr.Message == ifnotfound {
+                txByte = 0
+                rxByte = 0
                 return
             } else {
-                log.Fatalf("failed to get iface state: %v", err)
+                //log.Fatalf("failed to get iface state: %v", err)
+                txByte = 0
+                rxByte = 0
+                return
             }
         }
     }
@@ -489,17 +481,39 @@ func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
 }
 
 
-func StartDomain(dom *libvirt.Domain) {
+func StartDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu *sync.Mutex) {
     err := dom.Create()
     if err != nil {
         log.Fatalf("failed to start domain: %v", err)
     }
     dur := time.Millisecond * 200
     for range time.Tick(dur) {
-        b, _ := dom.IsActive()
-        if b {
+        running, _ := dom.IsActive()
+        if running {
+            done <- "done"
+            mu.Lock()
+            wg.Done()
+            mu.Unlock()
             break
         }
+    }
+}
+
+
+func ShutdownDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu *sync.Mutex) {
+    for {
+        _ = dom.Shutdown()
+
+        running, _ := dom.IsActive()
+
+        if !running {
+            done <- "done"
+            mu.Lock()
+            wg.Done()
+            mu.Unlock()
+            break
+        }
+        time.Sleep(500 * time.Millisecond)
     }
 }
 
@@ -510,5 +524,4 @@ func DeleteDomain(dom *libvirt.Domain) {
         log.Fatalf("failed to Delete Domain: %v", err)
     }
 }
-
 

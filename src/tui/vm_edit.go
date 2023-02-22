@@ -23,6 +23,7 @@ type VMEdit struct {
     ifaceItemCount  int
     addDiskFunc     func()
     addIfaceFunc    func()
+    quitFunc        func()
     lineOfset       int
     lineOfsetMax    int
     clickItemIndex  int
@@ -72,6 +73,12 @@ func (e *VMEdit) SetAddDiskFunc(handler func()) *VMEdit {
 }
 
 
+func (e *VMEdit) SetQuitFunc(handler func()) *VMEdit {
+    e.quitFunc = handler
+    return e
+}
+
+
 func (e *VMEdit) Draw(screen tcell.Screen) {
     e.Box.DrawForSubclass(screen, e)
     x, y, w, h := e.GetInnerRect()
@@ -81,9 +88,12 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
     tview.Print(screen, e.name, x, y, w, tview.AlignCenter, tcell.ColorDarkSlateGray)
 
 
-
-    tview.Print(screen,"[+] Disk", x, y+1, w/2, tview.AlignCenter, tcell.Color226)
-    tview.Print(screen,"[+] NIC", x+(w/2)+1, y+1, w/2, tview.AlignCenter, tcell.Color45)
+    tview.Print(screen,"Quit", x, y+1, w/3, tview.AlignCenter, tcell.Color80)
+    screen.SetContent(x, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color80))
+    tview.Print(screen,"[+] Disk", x+(w/3)+1, y+1, w/3, tview.AlignCenter, tcell.Color226)
+    screen.SetContent(x+(w/3)+1, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color226))
+    tview.Print(screen,"[+] NIC", x+(w*2/3)+1, y+1, w/3, tview.AlignCenter, tcell.Color45)
+    screen.SetContent(x+(w*2/3)+1, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color45))
 
     for i := x; i <= x+w; i++ {
         screen.SetContent(i, y+2, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDarkSlateGray))
@@ -293,15 +303,22 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
                 consumed = true
             }
         case tview.MouseLeftClick:
-            if px+(w/2)+1 <= x && py+1 == y {
-                if e.addIfaceFunc != nil {
-                    e.addIfaceFunc()
-                    consumed = true
-                }
-            } else if x <= px+(w/2) && py+1 == y {
-                if e.addDiskFunc != nil {
-                    e.addDiskFunc()
-                    consumed = true
+            if py+1 == y {
+                if x <= px+(w/3)+1 {
+                    if e.quitFunc != nil {
+                        e.quitFunc()
+                        consumed = true
+                    }
+                } else if x <= px+(w*2/3)+1 {
+                    if e.addDiskFunc != nil {
+                        e.addDiskFunc()
+                        consumed = true
+                    }
+                } else {
+                    if e.addIfaceFunc != nil {
+                        e.addIfaceFunc()
+                        consumed = true
+                    }
                 }
             } else if py+2 < y && ! itemSpacers {
                 e.clickItemIndex = (y - 3 +e.lineOfset) / 5
@@ -310,6 +327,7 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
                 }
                 if f := e.items[e.clickItemIndex].GetSelectedFunc(); f != nil {
                     f()
+                    consumed = true
                 }
             }
         }
@@ -712,6 +730,11 @@ func SetAddFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VM
         page.AddPage("AddDiskMenu", modal, true, true)
         page.ShowPage("AddDiskMenu")
         app.SetFocus(modal)
+    })
+    edit.SetQuitFunc(func() {
+        name := vm.Name
+        page.SwitchToPage(name)
+        page.RemovePage("Edit")
     })
 }
 

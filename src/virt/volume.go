@@ -103,6 +103,19 @@ func GetVolumeInfo(poolPath string, con *libvirt.Connect) Diskinfo {
 }
 
 
+func PoolRefreshByName(con *libvirt.Connect, name string) error {
+    pool, err := con.LookupStoragePoolByName(name)
+    if err != nil {
+        return err
+    }
+    err = pool.Refresh(0)
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+
 func CheckCreateVolumeRequest(name string, size int, available uint64) (OK bool, ErrInfo string) {
     OK = true
     ErrInfo = ""

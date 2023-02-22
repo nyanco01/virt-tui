@@ -138,13 +138,13 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
     form.AddDropDown("CPU number", optionCPU, 0, nil)
     
     // Memory size              item index 2
-    form.AddInputField(fmt.Sprintf("Memory Size [orange]MB (max. %d MB) ", int(maxMem/1024)), "", 10, nil, nil)
+    form.AddInputField(fmt.Sprintf("Memory Size [orange]MB (max. %d MB) ", int(maxMem/kibi)), "", 10, nil, nil)
     form.GetFormItem(2).(*tview.InputField).SetAcceptanceFunc(InputFieldPositiveInteger)
     
     // Disk pool path           item index 3
     form.AddDropDown("Storage pool", listPool.Name, 0, nil)
     // Disk Size                item index 4
-    form.AddInputField(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[0] - uint64(1024*1024*1024)) / uint64(1024*1024*1024))), "", 6, nil, nil)
+    form.AddInputField(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[0] - gibi) / gibi)), "", 6, nil, nil)
     form.GetFormItem(4).(*tview.InputField).SetAcceptanceFunc(InputFieldPositiveInteger)
 
     // VNC port number          item index 5
@@ -161,7 +161,7 @@ func MakeVMCreateForm(app *tview.Application, con *libvirt.Connect, view *tview.
     form.GetFormItem(3).(*tview.DropDown).SetDoneFunc(func(key tcell.Key) {
         if (key == tcell.KeyTab) || (key == tcell.KeyBacktab) {
             index, _ := form.GetFormItem(3).(*tview.DropDown).GetCurrentOption()
-            form.GetFormItem(4).(*tview.InputField).SetLabel(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[index] - uint64(2*1024*1024*1024)) / uint64(1024*1024*1024)) ))
+            form.GetFormItem(4).(*tview.InputField).SetLabel(fmt.Sprintf("Disk Size [orange]GB (max %.1f GB)", float64((listPool.Avalable[index] - (2*gibi)) / gibi) ))
         }
     })
 

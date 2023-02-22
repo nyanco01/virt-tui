@@ -13,11 +13,11 @@ import (
 
 
 func InputFieldIPv4Subnet(text string, ch rune) bool {
-    if ch == '.' || ch == '/' {
-        return true
-    }
     if len(text) > 18 {
         return false
+    }
+    if ch == '.' || ch == '/' {
+        return true
     }
     for i := 0; i <= 9; i++ {
         if ch == rune(i + '0') {
@@ -38,16 +38,19 @@ func SelectPageButton(app *tview.Application, page *tview.Pages) *tview.Flex {
     btBridge.SetSelectedFunc(func() {
         if page.HasPage("Bridge") {
             page.SwitchToPage("Bridge")
+            app.SetFocus(page)
         }
     })
     btNAT.SetSelectedFunc(func() {
         if page.HasPage("NAT") {
             page.SwitchToPage("NAT")
+            app.SetFocus(page)
         }
     })
     btPrivate.SetSelectedFunc(func() {
         if page.HasPage("Private") {
             page.SwitchToPage("Private")
+            app.SetFocus(page)
         }
     })
 
@@ -123,7 +126,9 @@ func MakeNetCreatePageByBridge(app *tview.Application, con *libvirt.Connect, pag
             } else {
                 net := virt.GetNetworkByName(con, name)
                 list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                network := NewNetwork(con, net)
+                page.AddPage(net.Name, network, true, true)
+                go NetworkStatusUpdate(app, network, con, net)
                 page.RemovePage("Create")
                 app.SetFocus(list)
             }
@@ -180,7 +185,9 @@ func MakeNetCreatePageByNAT(app *tview.Application, con *libvirt.Connect, page *
             } else {
                 net := virt.GetNetworkByName(con, name)
                 list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                network := NewNetwork(con, net)
+                page.AddPage(net.Name, network, true, true)
+                go NetworkStatusUpdate(app, network, con, net)
                 page.RemovePage("Create")
                 app.SetFocus(list)
             }
@@ -229,7 +236,9 @@ func MakeNetCreatePageByPrivate(app *tview.Application, con *libvirt.Connect, pa
             } else {
                 net := virt.GetNetworkByName(con, name)
                 list.AddItem(net.Name, net.NetType, rune(list.GetItemCount()+'0'), nil)
-                page.AddPage(net.Name, NewNetwork(con, net), true, true)
+                network := NewNetwork(con, net)
+                page.AddPage(net.Name, network, true, true)
+                go NetworkStatusUpdate(app, network, con, net)
                 page.RemovePage("Create")
                 app.SetFocus(list)
             }
@@ -267,28 +276,28 @@ func MakeNetCreate(app *tview.Application, con *libvirt.Connect, mainPage *tview
         AddItem(createPage, 0, 1, true)
 
     flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        var left bool = event.Key() == tcell.KeyLeft && event.Modifiers() == tcell.ModCtrl
+        var right bool = event.Key() == tcell.KeyRight && event.Modifiers() == tcell.ModCtrl
         pageTitle ,_ := createPage.GetFrontPage()
         switch pageTitle {
         case "Bridge":
-            if event.Key() == tcell.KeyRight {
+            if right {
                 createPage.SwitchToPage("NAT")
                 return nil
             }
         case "NAT":
-            if event.Key() == tcell.KeyRight {
+            if right {
                 createPage.SwitchToPage("Private")
                 return nil
-            } else if event.Key() == tcell.KeyLeft {
+            } else if left {
                 createPage.SwitchToPage("Bridge")
                 return nil
             }
         case "Private":
-            if event.Key() == tcell.KeyLeft {
+            if left {
                 createPage.SwitchToPage("NAT")
                 return nil
             }
-        default:
-            return event
         }
         return event
     })

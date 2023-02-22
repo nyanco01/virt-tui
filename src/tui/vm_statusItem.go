@@ -14,21 +14,6 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
-const (
-    kilo = constants.Kilo
-    mega = constants.Mega
-    giga = constants.Giga
-    kibi = constants.Kibi
-    mebi = constants.Mebi
-    gibi = constants.Gibi
-)
-
-const (
-    leftTriangle    = constants.LeftTriangle
-    rightTraiangle  = constants.RightTraiangle
-    upTraiangle     = constants.UpTraiangle
-    downTraiangle   = constants.DownTraiangle
-)
 
 var VirtualMachineStatus    map[string]bool
 
@@ -68,12 +53,6 @@ type NIC struct {
     bwGraphDown     [150][500]string
     ifList          []NICMember
     index           int
-    /*
-    bwUp            [500]int64
-    bwDown          [500]int64
-    name            string
-    MACAddr         string
-    */
 }
 
 
@@ -184,9 +163,6 @@ func (c *CPU) Draw(screen tcell.Screen) {
         }
         graph = append(graph, tmpLine)
     }
-
-    // draw
-
     tview.Print(screen, "CPU", x, y-1, w, tview.AlignCenter, tcell.NewRGBColor(0, 255, 127))
     tview.Print(screen, constants.LeftTop, x, y-1, w, tview.AlignLeft, tcell.NewRGBColor(0, 255, 127))
     tview.Print(screen, constants.RightTop, x, y-1, w, tview.AlignRight, tcell.NewRGBColor(0, 255, 127))
@@ -216,6 +192,11 @@ func (c *CPU)Update(u float64) {
 
     c.usage[0] = u
 }
+
+func (c *CPU)GetLastStatus() (float64, int) {
+    return c.usage[0], int(c.vcpus)
+}
+
 
 // -------------------------------- Memory --------------------------------
 func NewMemory() *Mem {
@@ -729,10 +710,7 @@ func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
     vmstatus.AddItem(disk, 5, 1, false)
     vmstatus.AddItem(nic, 0, 1, false)
 
-
-    go func() {
-        VMStatusUpdate(app, vmstatus, cpu, mem, nic, vm)
-    }()
+    go VMStatusUpdate(app, vmstatus, cpu, mem, nic, vm)
 
     return vmstatus
 }
@@ -740,8 +718,6 @@ func NewVMStatus(app * tview.Application, vm *virt.VM) tview.Primitive{
 
 func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem, nic *NIC, vm *virt.VM) {
     sec := time.Second
-
-    time.Sleep(sec)
     if b, _ := vm.Domain.IsActive(); !b {
         if flex.GetItemCount() == 4 {
             flex.Clear()
@@ -749,32 +725,19 @@ func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem
         }
     }
 
-    var timeCnt uint64 = 0
-    for range time.Tick(sec) {
-        if timeCnt >= 3 {
-            break
-        }
-        timeCnt++
-    }
-
     var oldUsage uint64
     if b, _ := vm.Domain.IsActive(); b {
-        oldUsage, _ = virt.GetCPUUsage(vm.Domain)  // cpu
+        oldUsage, _, _ = virt.GetCPUUsage(vm.Domain)  // cpu
     }
 
     for range time.Tick(sec) {
-        //timeCnt++
         b, _ := vm.Domain.IsActive()
         if b {
-            if !vm.Status {
-                vm.Status = true
+            newUsage, cnt, err := virt.GetCPUUsage(vm.Domain)  // cpu
+            if err != nil {
+                _, cnt = cpu.GetLastStatus()
+                newUsage = oldUsage
             }
-            /*
-            if timeCnt < 4 {
-                continue
-            }
-            */
-            newUsage, cnt := virt.GetCPUUsage(vm.Domain)  // cpu
 
             max, used := virt.GetMemUsed(vm.Domain)  // memory
             app.QueueUpdateDraw(func() {
@@ -791,10 +754,5 @@ func VMStatusUpdate(app *tview.Application, flex *tview.Flex, cpu *CPU, mem *Mem
                 flex.AddItem(NotUpVM(vm.Name), 0, 1, false)
             }
         }
-        /*
-        if !VirtualMachineStatus[vm.Name] {
-            break
-        }
-        */
     }
 }

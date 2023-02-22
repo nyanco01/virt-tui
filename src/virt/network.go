@@ -46,6 +46,12 @@ func GetDomIFListByBridgeName(con *libvirt.Connect, source string) []DomainIF {
             log.Fatalf("failed to unmarshal xml by domain: %v", err)
         }
         for _, iface := range domXML.Devices.Interfaces {
+            if iface.Source == nil {
+                break
+            }
+            if iface.Source.Bridge == nil {
+                break
+            }
             if iface.Source.Bridge.Bridge == source {
                 n := operate.GetIFNameByMAC(iface.MAC.Address)
                 ifList = append(ifList, DomainIF{AttachVM: domXML.Name, MacAddr: iface.MAC.Address, Name: n})
@@ -84,6 +90,12 @@ func CheckContainDomIF(con *libvirt.Connect, name string) bool {
             log.Fatalf("failed to unmarshal xml by domain: %v", err)
         }
         for _, iface := range domXML.Devices.Interfaces {
+            if iface.Source == nil {
+                continue
+            }
+            if iface.Source.Bridge == nil {
+                continue
+            }
             if iface.Source.Bridge.Bridge == brName {
                 return true
             }

@@ -6,6 +6,8 @@ import (
 	//"fmt"
 
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -165,8 +167,6 @@ func (n *Network)Draw(screen tcell.Screen) {
 
     }
 
-
-
     if len(n.ifList) != 0 {
         if h >= fullHeight {
             // Drawing iface list
@@ -223,6 +223,21 @@ func (n *Network)Draw(screen tcell.Screen) {
 }
 
 
+func (n *Network)Update(con *libvirt.Connect, netInfo virt.NetworkInfo) *Network {
+    iflist := virt.GetDomIFListByBridgeName(con, netInfo.Source)
+
+    var ifnames []string
+    for _, i := range iflist {
+        if i.Name != "" {
+            ifnames = append(ifnames, i.Name)
+        }
+    }
+
+    n.ifList = iflist
+    return n
+}
+
+
 func (n *Network)MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
     return n.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
         x, y := event.Position()
@@ -252,6 +267,25 @@ func (n *Network)MouseHandler() func(action tview.MouseAction, event *tcell.Even
 }
 
 
+func NetworkStatusUpdate(app *tview.Application, n *Network, con *libvirt.Connect, netinfo virt.NetworkInfo) {
+    time.Sleep(time.Second * 3)
+    for range time.Tick(time.Second * 3) {
+        _, err := con.LookupNetworkByName(netinfo.Name)
+        if err != nil {
+            if virtErr, ok := err.(libvirt.Error); ok {
+                text := "no network with matching name"
+                if strings.Contains(virtErr.Message, text) {
+                    break
+                }
+            }
+        }
+        app.QueueUpdateDraw(func() {
+            n.Update(con, netinfo)
+        })
+    }
+}
+
+
 func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages) *tview.Flex {
     flex := tview.NewFlex()
     list := tview.NewList()
@@ -261,7 +295,9 @@ func MakeNetMenu(app *tview.Application, con *libvirt.Connect, page *tview.Pages
 
     for i, net := range virt.GetNetworkList(con) {
         list.AddItem(net.Name, net.NetType, rune(i+'0'), nil)
-        page.AddPage(net.Name, NewNetwork(con, net), true, true)
+        network := NewNetwork(con, net)
+        page.AddPage(net.Name, network, true, true)
+        go NetworkStatusUpdate(app, network, con, net)
     }
 
     list.SetChangedFunc(func(index int, mainText, secondaryText string, shortcut rune) {

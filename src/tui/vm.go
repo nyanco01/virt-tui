@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -13,7 +12,7 @@ import (
 )
 
 
-func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, text string, done <-chan string, wg *sync.WaitGroup, mu *sync.Mutex) tview.Primitive {
+func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, text string, done chan string) tview.Primitive {
     view := tview.NewTextView()
     view.SetDynamicColors(true)
     view.SetTextColor(tcell.ColorYellow)
@@ -23,27 +22,31 @@ func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, te
     go func() {
         spin := []rune(`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`)
         cnt := 0
-        mu.Lock()
-        wg.Add(1)
-        mu.Unlock()
         for {
             select {
             case <-done:
-                page.RemovePage("Loading")
-                mu.Lock()
-                wg.Done()
-                mu.Unlock()
+                app.QueueUpdate(func() {
+                    page.RemovePage("Loading")
+                })
+                //page.RemovePage("Loading")
                 break
             default:
-                time.Sleep(200 * time.Millisecond)
+                
                 viewtext := string(spin[cnt]) + " " + fmt.Sprintf("[white]%s", text)
                 app.QueueUpdateDraw(func() {
+                    /*
+                    if !view.HasFocus() {
+                        app.SetFocus(view)
+                        page.ShowPage("Loading")
+                    }
+                    */
                     view.SetText(viewtext)
                 })
                 cnt++
                 if cnt == len(spin)-1 {
                     cnt = 0
                 }
+                time.Sleep(200 * time.Millisecond)
             }
         }
     }()
@@ -85,6 +88,7 @@ func MakeNotification(app *tview.Application, page *tview.Pages, list *tview.Lis
     view := tview.NewTextView()
     view.SetDynamicColors(true)
     view.SetText(text)
+    view.SetTextAlign(tview.AlignCenter)
 
     form := tview.NewForm()
     form.SetButtonBackgroundColor(tcell.NewRGBColor(80, 80, 80))
@@ -199,25 +203,37 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         btReboot = SetButtonDefaultStyle(btReboot, tcell.Color56.TrueColor())
 
         btShutdown.SetSelectedFunc(func() {
-            var wg = new(sync.WaitGroup)
-            var mu = new(sync.Mutex)
-            mu.Lock()
-            // これなんで1じゃないの?
-            wg.Add(2)
-            mu.Unlock()
-            done := make(chan string)
 
-            loading := MakeLoading(app, page, list, "VM is shutting down", done, wg, mu)
+            cancel := func() chan string {
+                c := make(chan string)
+                go func() {
+                    time.Sleep(10 * time.Second)
+                    c <- "During 10 second"
+                }()
+                return c
+            }()
+
+            done, e := virt.ShutdownDomain(vm.Domain, cancel)
+
+            page.RemovePage("OnOff")
+
+            loading := MakeLoading(app, page, list, "VM is shutting down", done)
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
 
-            go virt.ShutdownDomain(vm.Domain, done, wg, mu)
 
             go func() {
-                page.RemovePage("OnOff")
-                wg.Wait()
-                vm.Status = false
-                app.SetFocus(list)
+                select {
+                case <-done:
+                    vm.Status = false
+                    app.SetFocus(list)
+                case v := <-e:
+                    done <- "done"
+                    notice := MakeNotification(app, page, list, v)
+                    page.AddPage("Notification", notice, true, true)
+                    page.ShowPage("Notification")
+                    app.SetFocus(notice)
+                }
             }()
 
         })
@@ -245,22 +261,38 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         btReboot = SetButtonDefaultStyle(btReboot, tcell.ColorDarkSlateGray)
 
         btStart.SetSelectedFunc(func() {
-            var wg = new(sync.WaitGroup)
-            var mu = new(sync.Mutex)
-            mu.Lock()
-            wg.Add(1)
-            mu.Unlock()
-            done := make(chan string)
+            cancel := func() chan string {
+                c := make(chan string)
+                go func() {
+                    time.Sleep(20 * time.Second)
+                    c <- "During 20 second"
+                }()
+                return c
+            }()
 
-            loading := MakeLoading(app, page, list, "VM is starting", done, wg, mu)
+            done, e := virt.StartDomain(vm.Domain, cancel)
+
+            page.RemovePage("OnOff")
+            loading := MakeLoading(app, page, list, "VM is starting", done)
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
 
-            go virt.StartDomain(vm.Domain, done, wg, mu)
-            
             go func(){
+                select {
+                case <-done:
+                    vm.Status = true
+                    page.RemovePage(vm.Name)
+                    page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)
+                    list.SetItemText(list.GetCurrentItem(), vm.Name, "")
+                    app.SetFocus(list)
+                case v := <-e:
+                    done <- "done"
+                    notice := MakeNotification(app, page, list, v)
+                    page.AddPage("Notification", notice, true, true)
+                    page.ShowPage("Notification")
+                    app.SetFocus(notice)
+                }
                 page.RemovePage("OnOff")
-                wg.Wait()
                 vm.Status = true
                 page.RemovePage(vm.Name)
                 page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)

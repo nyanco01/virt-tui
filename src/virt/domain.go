@@ -3,7 +3,6 @@ package virt
 import (
 	"log"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/nyanco01/virt-tui/src/constants"
@@ -481,40 +480,90 @@ func AttachBridgeNIC(d *libvirt.Domain, ifName string) {
 }
 
 
-func StartDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu *sync.Mutex) {
-    err := dom.Create()
-    if err != nil {
-        log.Fatalf("failed to start domain: %v", err)
-    }
-    dur := time.Millisecond * 200
-    for range time.Tick(dur) {
-        running, _ := dom.IsActive()
-        if running {
-            done <- "done"
-            mu.Lock()
-            wg.Done()
-            mu.Unlock()
-            break
+func StartDomain(dom *libvirt.Domain, cancel chan string) (done, err chan string) {
+    done = make(chan string)
+    err = make(chan string)
+
+    go func() {
+        e := dom.Create()
+        if e != nil {
+            if virtErr, ok := e.(libvirt.Error); ok {
+                err <- virtErr.Message
+                return
+            }
         }
-    }
+        for {
+            select {
+            case v := <-cancel:
+                err <- v
+                break
+            default:
+                running, e := dom.IsActive()
+                if e != nil {
+                    if virtErr, ok := e.(libvirt.Error); ok {
+                        err <- virtErr.Message
+                        break
+                    }
+                }
+                if running {
+                    select {
+                    case _, _ = <-done:
+                    default:
+                        close(done)
+                    }
+                    break
+                }
+                time.Sleep(500 * time.Millisecond)
+            }
+        }
+
+    }()
+
+    return
 }
 
 
-func ShutdownDomain(dom *libvirt.Domain, done chan<- string, wg *sync.WaitGroup, mu *sync.Mutex) {
-    for {
-        _ = dom.Shutdown()
+func ShutdownDomain(dom *libvirt.Domain, cancel chan string) (done, err chan string) {
+    done = make(chan string)
+    err = make(chan string)
 
-        running, _ := dom.IsActive()
-
-        if !running {
-            done <- "done"
-            mu.Lock()
-            wg.Done()
-            mu.Unlock()
-            break
+    go func() {
+        e := dom.Shutdown()
+        if e != nil {
+            if virtErr, ok := e.(libvirt.Error); ok {
+                err <- virtErr.Message
+                return
+            }
         }
-        time.Sleep(500 * time.Millisecond)
-    }
+        for {
+            select {
+            case v := <-cancel:
+                err <- v
+                break
+            default:
+                running, e := dom.IsActive()
+                if e != nil {
+                    if virtErr, ok := e.(libvirt.Error); ok {
+                        err <- virtErr.Message
+                        break
+                    }
+                }
+                if !running {
+                    //close(done)
+                    select {
+                    case _, _ = <-done:
+                    default:
+                        close(done)
+                    }
+                    break
+                }
+                time.Sleep(500 * time.Millisecond)
+            }
+        }
+
+    }()
+
+    return
 }
 
 

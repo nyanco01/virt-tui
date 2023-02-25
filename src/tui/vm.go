@@ -12,6 +12,16 @@ import (
 )
 
 
+func cancelTimer(t int) chan string {
+    cancel := make(chan string)
+    go func() {
+        time.Sleep(time.Duration(t) * time.Second)
+        cancel <- fmt.Sprintf("During %d sec", t)
+    }()
+    return cancel
+}
+
+
 func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, text string, done chan string) tview.Primitive {
     view := tview.NewTextView()
     view.SetDynamicColors(true)
@@ -204,23 +214,18 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
 
         btShutdown.SetSelectedFunc(func() {
 
-            cancel := func() chan string {
-                c := make(chan string)
-                go func() {
-                    time.Sleep(10 * time.Second)
-                    c <- "During 10 second"
-                }()
-                return c
-            }()
+            cancel := cancelTimer(10)
 
             done, e := virt.ShutdownDomain(vm.Domain, cancel)
 
             page.RemovePage("OnOff")
 
+            /*
             loading := MakeLoading(app, page, list, "VM is shutting down", done)
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
-
+            */
+            page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is shutting down", done), true)
 
             go func() {
                 select {
@@ -261,21 +266,17 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         btReboot = SetButtonDefaultStyle(btReboot, tcell.ColorDarkSlateGray)
 
         btStart.SetSelectedFunc(func() {
-            cancel := func() chan string {
-                c := make(chan string)
-                go func() {
-                    time.Sleep(20 * time.Second)
-                    c <- "During 20 second"
-                }()
-                return c
-            }()
+            cancel := cancelTimer(20) 
 
             done, e := virt.StartDomain(vm.Domain, cancel)
 
             page.RemovePage("OnOff")
+            /*
             loading := MakeLoading(app, page, list, "VM is starting", done)
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
+            */
+            page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is starting", done), true)
 
             go func(){
                 select {
@@ -292,12 +293,6 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
                     page.ShowPage("Notification")
                     app.SetFocus(notice)
                 }
-                page.RemovePage("OnOff")
-                vm.Status = true
-                page.RemovePage(vm.Name)
-                page.AddAndSwitchToPage(vm.Name, NewVMStatus(app, vm), true)
-                list.SetItemText(list.GetCurrentItem(), vm.Name, "")
-                app.SetFocus(list)
             }()
         })
         btDelete.SetSelectedFunc(func() {

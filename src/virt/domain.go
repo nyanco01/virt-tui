@@ -549,7 +549,6 @@ func ShutdownDomain(dom *libvirt.Domain, cancel chan string) (done, err chan str
                     }
                 }
                 if !running {
-                    //close(done)
                     select {
                     case _, _ = <-done:
                     default:

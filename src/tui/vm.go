@@ -32,33 +32,34 @@ func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, te
     go func() {
         spin := []rune(`⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏`)
         cnt := 0
-        for {
-            select {
-            case <-done:
-                app.QueueUpdate(func() {
-                    page.RemovePage("Loading")
-                })
-                //page.RemovePage("Loading")
-                break
-            default:
-                
-                viewtext := string(spin[cnt]) + " " + fmt.Sprintf("[white]%s", text)
-                app.QueueUpdateDraw(func() {
-                    /*
-                    if !view.HasFocus() {
-                        app.SetFocus(view)
-                        page.ShowPage("Loading")
+        Loop:
+            for {
+                select {
+                case <-done:
+                    app.QueueUpdate(func() {
+                        page.RemovePage("Loading")
+                        app.Sync()
+                    })
+                    break Loop
+                default:
+                    
+                    viewtext := string(spin[cnt]) + " " + fmt.Sprintf("[white]%s", text)
+                    app.QueueUpdateDraw(func() {
+                        /*
+                        if !view.HasFocus() {
+                            app.SetFocus(view)
+                            page.ShowPage("Loading")
+                        }
+                        */
+                        view.SetText(viewtext)
+                    })
+                    cnt++
+                    if cnt == len(spin)-1 {
+                        cnt = 0
                     }
-                    */
-                    view.SetText(viewtext)
-                })
-                cnt++
-                if cnt == len(spin)-1 {
-                    cnt = 0
+                    time.Sleep(200 * time.Millisecond)
                 }
-                time.Sleep(200 * time.Millisecond)
             }
-        }
     }()
 
     return pageModal(view, len(text)+10, 3)
@@ -220,12 +221,15 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
 
             page.RemovePage("OnOff")
 
-            /*
+            if page.HasPage("Loading") {
+                page.RemovePage("Loading")
+            }
+            
             loading := MakeLoading(app, page, list, "VM is shutting down", done)
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
-            */
-            page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is shutting down", done), true)
+            
+            //page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is shutting down", done), true)
 
             go func() {
                 select {
@@ -271,12 +275,16 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             done, e := virt.StartDomain(vm.Domain, cancel)
 
             page.RemovePage("OnOff")
-            /*
+
+            if page.HasPage("Loading") {
+                page.RemovePage("Loading")
+            }
+            
             loading := MakeLoading(app, page, list, "VM is starting", done)
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
-            */
-            page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is starting", done), true)
+            
+            //page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is starting", done), true)
 
             go func(){
                 select {

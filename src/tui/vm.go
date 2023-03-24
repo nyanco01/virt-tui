@@ -45,12 +45,6 @@ func MakeLoading(app *tview.Application, page *tview.Pages, list *tview.List, te
                     
                     viewtext := string(spin[cnt]) + " " + fmt.Sprintf("[white]%s", text)
                     app.QueueUpdateDraw(func() {
-                        /*
-                        if !view.HasFocus() {
-                            app.SetFocus(view)
-                            page.ShowPage("Loading")
-                        }
-                        */
                         view.SetText(viewtext)
                     })
                     cnt++
@@ -207,8 +201,8 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
         // Disable button
         btStart = SetButtonDefaultStyle(btStart, tcell.ColorDarkSlateGray)
         btDelete = SetButtonDefaultStyle(btDelete, tcell.ColorDarkSlateGray)
-        btEdit = SetButtonDefaultStyle(btEdit, tcell.ColorDarkSlateGray)
         // Enable button
+        btEdit = SetButtonDefaultStyle(btEdit, tcell.Color82)
         btShutdown = SetButtonDefaultStyle(btShutdown, tcell.ColorOrangeRed)
         btDestroy = SetButtonDefaultStyle(btDestroy, tcell.ColorRed)
         btReboot = SetButtonDefaultStyle(btReboot, tcell.Color56.TrueColor())
@@ -229,8 +223,6 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
             
-            //page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is shutting down", done), true)
-
             go func() {
                 select {
                 case <-done:
@@ -244,7 +236,6 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
                     app.SetFocus(notice)
                 }
             }()
-
         })
         btDestroy.SetSelectedFunc(func() {
             _ = vm.Domain.Destroy()
@@ -258,6 +249,15 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             time.Sleep(time.Second)
             page.RemovePage("OnOff")
             app.SetFocus(list)
+        })
+        btEdit.SetLabel("Edit(View only)")
+        btEdit.SetSelectedFunc(func() {
+            page.RemovePage("OnOff")
+            if page.HasPage("Edit") {
+                page.RemovePage("Edit")
+            }
+            page.AddAndSwitchToPage("Edit", MakeVMEditMenu(app, vm, list, page, true), true)
+            app.SetFocus(page)
         })
     } else {
         // Enable button
@@ -284,8 +284,6 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             page.AddPage("Loading", loading, true, true)
             page.ShowPage("Loading")
             
-            //page.AddAndSwitchToPage("Loading", MakeLoading(app, page, list, "VM is starting", done), true)
-
             go func(){
                 select {
                 case <-done:
@@ -315,7 +313,7 @@ func MakeOnOffModal(app *tview.Application, vm *virt.VM, page *tview.Pages, list
             if page.HasPage("Edit") {
                 page.RemovePage("Edit")
             }
-            page.AddAndSwitchToPage("Edit", MakeVMEditMenu(app, vm, list, page), true)
+            page.AddAndSwitchToPage("Edit", MakeVMEditMenu(app, vm, list, page, false), true)
             app.SetFocus(page)
         })
     }

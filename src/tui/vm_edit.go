@@ -27,10 +27,11 @@ type VMEdit struct {
     lineOfset       int
     lineOfsetMax    int
     clickItemIndex  int
+    viewonly        bool
 }
 
 
-func NewVMEdit(dom *libvirt.Domain) *VMEdit {
+func NewVMEdit(dom *libvirt.Domain, viewonly bool) *VMEdit {
     n, err := dom.GetName()
     if err != nil {
         log.Fatalf("failed to get domain name: %v", err)
@@ -45,6 +46,7 @@ func NewVMEdit(dom *libvirt.Domain) *VMEdit {
         lineOfset:      0,
         lineOfsetMax:   0,
         clickItemIndex: -1,
+        viewonly:       viewonly,
     }
 }
 
@@ -87,13 +89,17 @@ func (e *VMEdit) Draw(screen tcell.Screen) {
     }
     tview.Print(screen, e.name, x, y, w, tview.AlignCenter, tcell.ColorDarkSlateGray)
 
-
     tview.Print(screen,"Quit", x, y+1, w/3, tview.AlignCenter, tcell.Color80)
     screen.SetContent(x, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color80))
-    tview.Print(screen,"[+] Disk", x+(w/3)+1, y+1, w/3, tview.AlignCenter, tcell.Color226)
-    screen.SetContent(x+(w/3)+1, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color226))
-    tview.Print(screen,"[+] NIC", x+(w*2/3)+1, y+1, w/3, tview.AlignCenter, tcell.Color45)
-    screen.SetContent(x+(w*2/3)+1, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color45))
+    if e.viewonly {
+        screen.SetContent(x+(w/3), y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color80))
+        tview.Print(screen, "[View only]", x+(w/3)+1, y+1, w*2/3,tview.AlignCenter, tcell.Color82)
+    } else {
+        tview.Print(screen,"[+] Disk", x+(w/3)+1, y+1, w/3, tview.AlignCenter, tcell.Color226)
+        screen.SetContent(x+(w/3)+1, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color226))
+        tview.Print(screen,"[+] NIC", x+(w*2/3)+1, y+1, w/3, tview.AlignCenter, tcell.Color45)
+        screen.SetContent(x+(w*2/3)+1, y+1, ' ', nil, tcell.StyleDefault.Background(tcell.Color45))
+    }
 
     for i := x; i <= x+w; i++ {
         screen.SetContent(i, y+2, ' ', nil, tcell.StyleDefault.Background(tcell.ColorDarkSlateGray))
@@ -309,12 +315,12 @@ func (e *VMEdit)MouseHandler() func(action tview.MouseAction, event *tcell.Event
                         e.quitFunc()
                         consumed = true
                     }
-                } else if x <= px+(w*2/3)+1 {
+                } else if x <= px+(w*2/3)+1 && !e.viewonly {
                     if e.addDiskFunc != nil {
                         e.addDiskFunc()
                         consumed = true
                     }
-                } else {
+                } else if !e.viewonly {
                     if e.addIfaceFunc != nil {
                         e.addIfaceFunc()
                         consumed = true
@@ -738,11 +744,13 @@ func SetAddFunc(app *tview.Application, vm *virt.VM, page *tview.Pages, edit *VM
     })
 }
 
-func MakeVMEditMenu(app *tview.Application, vm *virt.VM, list *tview.List, page *tview.Pages) *VMEdit {
-    edit := NewVMEdit(vm.Domain)
+func MakeVMEditMenu(app *tview.Application, vm *virt.VM, list *tview.List, page *tview.Pages, viewonly bool) *VMEdit {
+    edit := NewVMEdit(vm.Domain, viewonly)
     edit.SetItemList()
     SetAddFunc(app, vm, page, edit)
-    edit.SetItemsFunc(app, vm, page)
+    if !viewonly {
+        edit.SetItemsFunc(app, vm, page)
+    }
 
     return edit
 }

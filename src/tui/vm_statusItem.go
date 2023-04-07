@@ -14,19 +14,18 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
-
 var VirtualMachineStatus    map[string]bool
 
 type CPU struct {
     *tview.Box
-    usageGraph      [150][500]string
+    usageGraph      [150][500]rune
     usage           [500]float64
     vcpus           uint
 }
 
 type Mem struct {
     *tview.Box
-    usageGraph      [150][500]string
+    usageGraph      [150][500]rune
     usage           [500]float64
     maxMem          uint64
     usedMem         uint64
@@ -49,8 +48,8 @@ type NICMember struct {
 
 type NIC struct {
     *tview.Box
-    bwGraphUp       [150][500]string
-    bwGraphDown     [150][500]string
+    bwGraphUp       [150][500]rune
+    bwGraphDown     [150][500]rune
     ifList          []NICMember
     index           int
 }
@@ -100,10 +99,10 @@ func NewVMInfo(dom *libvirt.Domain) *tview.Box {
 
 // -------------------------------- CPU --------------------------------
 func NewCPU(vcpu uint) *CPU {
-    ug := [150][500]string{}
+    ug := [150][500]rune{}
     for i := 0; i < 8; i++ {
         for j := 0; j < 500; j++ {
-            ug[i][j] = " "
+            ug[i][j] = ' '
         }
     }
     u := [500]float64{}
@@ -135,19 +134,19 @@ func (c *CPU) Draw(screen tcell.Screen) {
         usage := c.usage[i]
         for j := 0; j < graphHeight; j++ {
             if (usage - (brailleGradient*4)) > 0 {
-                c.usageGraph[j][i] = "⣿"
+                c.usageGraph[j][i] = '⣿'
                 usage -= (brailleGradient*4)
             } else {
                 a := float64(usage / brailleGradient)
                 switch {
                 case a < 1.0:
-                    c.usageGraph[j][i] = " "
+                    c.usageGraph[j][i] = ' '
                 case 1.0 <= a && a < 2.0:
-                    c.usageGraph[j][i] = "⣀"
+                    c.usageGraph[j][i] = '⣀'
                 case 2.0 <= a && a < 3.0:
-                    c.usageGraph[j][i] = "⣤"
+                    c.usageGraph[j][i] = '⣤'
                 case 3.0 <= a && a < 4.0:
-                    c.usageGraph[j][i] = "⣶"
+                    c.usageGraph[j][i] = '⣶'
                 }
                 usage = 0
             }
@@ -159,7 +158,7 @@ func (c *CPU) Draw(screen tcell.Screen) {
     for i := 0; i <= graphHeight; i++ {
         tmpLine := ""
         for j := w; j > 0; j-- {
-            tmpLine += c.usageGraph[graphHeight - i][j]
+            tmpLine += string(c.usageGraph[graphHeight - i][j])
         }
         graph = append(graph, tmpLine)
     }
@@ -200,10 +199,10 @@ func (c *CPU)GetLastStatus() (float64, int) {
 
 // -------------------------------- Memory --------------------------------
 func NewMemory() *Mem {
-    ug := [150][500]string{}
+    ug := [150][500]rune{}
     for i := 0; i < 150; i++ {
         for j := 0; j < 500; j++ {
-            ug[i][j] = " "
+            ug[i][j] = ' '
         }
     }
     u := [500]float64{}
@@ -236,19 +235,19 @@ func (m *Mem)Draw(screen tcell.Screen) {
         usage := m.usage[i]
         for j := 0; j < graphHeight; j++ {
             if (usage - (brailleGradient*4)) > 0 {
-                m.usageGraph[j][i] = "⣿"
+                m.usageGraph[j][i] = '⣿'
                 usage -= (brailleGradient*4)
             } else {
                 a := int(usage / brailleGradient)
                 switch {
                 case a == 0:
-                    m.usageGraph[j][i] = " "
+                    m.usageGraph[j][i] = ' '
                 case a == 1:
-                    m.usageGraph[j][i] = "⣀"
+                    m.usageGraph[j][i] = '⣀'
                 case a == 2:
-                    m.usageGraph[j][i] = "⣤"
+                    m.usageGraph[j][i] = '⣤'
                 case a == 3:
-                    m.usageGraph[j][i] = "⣶"
+                    m.usageGraph[j][i] = '⣶'
                 }
                 usage = 0
             }
@@ -259,7 +258,7 @@ func (m *Mem)Draw(screen tcell.Screen) {
     for i := 0; i <= graphHeight; i++ {
         tmpLine := ""
         for j := w; j > 0; j-- {
-            tmpLine += m.usageGraph[graphHeight - i][j]
+            tmpLine += string(m.usageGraph[graphHeight - i][j])
         }
         graph = append(graph, tmpLine)
     }
@@ -386,16 +385,16 @@ func (d *Disk)MouseHandler() func(action tview.MouseAction, event *tcell.EventMo
 
 // -------------------------- Network interface card ---------------------------
 func NewNIC() *NIC {
-    bwU := [150][500]string{}
+    bwU := [150][500]rune{}
     for i := 0; i < 150; i++ {
         for j := 0; j < 500; j++ {
-            bwU[i][j] = " "
+            bwU[i][j] = ' '
         }
     }
-    bwD := [150][500]string{}
+    bwD := [150][500]rune{}
     for i := 0; i < 150; i++ {
         for j := 0; j < 500; j++ {
-            bwD[i][j] = " "
+            bwD[i][j] = ' '
         }
     }
 
@@ -441,19 +440,19 @@ func (n *NIC)Draw(screen tcell.Screen) {
         bandwidth := n.ifList[n.index].bwUp[i]
         for j := 0; j <= graphHeight; j++ {
             if bandwidth > int64(float64(Uploadjudge) / float64(graphHeight)) {
-                n.bwGraphUp[j][i] = "⣿"
+                n.bwGraphUp[j][i] = '⣿'
                 bandwidth -= int64(float64(Uploadjudge) / float64(graphHeight))
             } else {
                 a := int(float64(bandwidth) / (float64(Uploadjudge) / float64(graphHeight*4)))
                 switch {
                 case a == 0:
-                    n.bwGraphUp[j][i] = " "
+                    n.bwGraphUp[j][i] = ' '
                 case a == 1:
-                    n.bwGraphUp[j][i] = "⣀"
+                    n.bwGraphUp[j][i] = '⣀'
                 case a == 2:
-                    n.bwGraphUp[j][i] = "⣤"
+                    n.bwGraphUp[j][i] = '⣤'
                 case a == 3:
-                    n.bwGraphUp[j][i] = "⣶"
+                    n.bwGraphUp[j][i] = '⣶'
                 }
                 bandwidth = 0
             }
@@ -474,19 +473,19 @@ func (n *NIC)Draw(screen tcell.Screen) {
         bandwidth := n.ifList[n.index].bwDown[i]
         for j := 0; j <= graphHeight; j++ {
             if bandwidth > int64(float64(Downloadjudge) / float64(graphHeight)) {
-                n.bwGraphDown[j][i] = "⣿"
+                n.bwGraphDown[j][i] = '⣿'
                 bandwidth -= int64(float64(Downloadjudge) / float64(graphHeight))
             } else {
                 a := int(float64(bandwidth) / (float64(Downloadjudge) / float64(graphHeight*4)))
                 switch {
                 case a == 0:
-                    n.bwGraphDown[j][i] = " "
+                    n.bwGraphDown[j][i] = ' '
                 case a == 1:
-                    n.bwGraphDown[j][i] = "⠉"
+                    n.bwGraphDown[j][i] = '⠉'
                 case a == 2:
-                    n.bwGraphDown[j][i] = "⠛"
+                    n.bwGraphDown[j][i] = '⠛'
                 case a == 3:
-                    n.bwGraphDown[j][i] = "⠿"
+                    n.bwGraphDown[j][i] = '⠿'
                 }
                 bandwidth = 0
             }
@@ -497,7 +496,7 @@ func (n *NIC)Draw(screen tcell.Screen) {
     for i := 0; i <= graphHeight; i++ {
         tmpLine := ""
         for j := w; j > 0; j-- {
-            tmpLine += n.bwGraphUp[graphHeight - i][j]
+            tmpLine += string(n.bwGraphUp[graphHeight - i][j])
         }
         graphUP = append(graphUP, tmpLine)
     }
@@ -506,7 +505,7 @@ func (n *NIC)Draw(screen tcell.Screen) {
     for i := 0; i <= graphHeight; i++ {
         tmpLine := ""
         for j := w; j > 0; j-- {
-            tmpLine += n.bwGraphDown[i][j]
+            tmpLine += string(n.bwGraphDown[i][j])
         }
         graphDOWN = append(graphDOWN, tmpLine)
     }

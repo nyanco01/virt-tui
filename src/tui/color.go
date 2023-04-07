@@ -30,18 +30,19 @@ func setColorGradation(colorType, num int) []tcell.Color{
             colors = append(colors, tcell.NewRGBColor(206 - int32(red*float64(i)), 56 - int32(green*float64(i)), 64 - int32(blue*float64(i))))
         }
     case MEMORY_COLOR:
-        // first color rgb 254 78 19
-        // second color rgb 126 38 9
-        diffRed     := 126 - 254
-        diffGreen   := 38 - 78
-        diffBlue    := 9 - 19
+        // first color rgb 248 179 112
+        // second color rgb 254 78 19
+        diffRed     := 254 - 250
+        diffGreen   := 78 - 179
+        diffBlue    := 19 - 112
 
         red         := float64(diffRed) / float64(num)
         green       := float64(diffGreen) / float64(num)
         blue        := float64(diffBlue) / float64(num)
 
         for i := 0; i < num; i++ {
-            colors = append(colors, tcell.NewRGBColor(126 - int32(red*float64(i)), 38 - int32(green*float64(i)), 9 - int32(blue*float64(i))))
+            colors = append(colors, tcell.NewRGBColor(254 - int32(red*float64(i)), 78 - int32(green*float64(i)),19 - int32(blue*float64(i))))
+            //colors = append(colors, tcell.NewRGBColor(126 - int32(red*float64(i)), 38 - int32(green*float64(i)), 9 - int32(blue*float64(i))))
         }
     case DISK_COLOR:
         // first color rgb 244 202 44

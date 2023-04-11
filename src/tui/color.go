@@ -42,7 +42,6 @@ func setColorGradation(colorType, num int) []tcell.Color{
 
         for i := 0; i < num; i++ {
             colors = append(colors, tcell.NewRGBColor(254 - int32(red*float64(i)), 78 - int32(green*float64(i)),19 - int32(blue*float64(i))))
-            //colors = append(colors, tcell.NewRGBColor(126 - int32(red*float64(i)), 38 - int32(green*float64(i)), 9 - int32(blue*float64(i))))
         }
     case DISK_COLOR:
         // first color rgb 244 202 44

@@ -14,6 +14,22 @@ import (
 	"github.com/nyanco01/virt-tui/src/virt"
 )
 
+var upperGraphDots = [5][5]rune{
+    {' ', '⢀', '⢠', '⢰', '⢸'},
+    {'⡀', '⣀', '⣠', '⣰', '⣸'},
+    {'⡄', '⣄', '⣤', '⣴', '⣼'},
+    {'⡆', '⣆', '⣦', '⣶', '⣾'},
+    {'⡇', '⣇', '⣧', '⣷', '⣿'},
+}
+
+var lowerGraphDots = [5][5]rune{
+    {' ', '⠈', '⠘', '⠸', '⢸'},
+    {'⠁', '⠉', '⠙', '⠹', '⢹'},
+    {'⠃', '⠋', '⠛', '⠻', '⢻'},
+    {'⠇', '⠏', '⠟', '⠿', '⢿'},
+    {'⡇', '⡏', '⡟', '⡿', '⣿'},
+}
+
 var VirtualMachineStatus    map[string]bool
 
 type CPU struct {
@@ -129,28 +145,50 @@ func (c *CPU) Draw(screen tcell.Screen) {
     }
     brailleGradient := float64(100) / float64(graphHeight * 4)
 
-    // draw graph
-    for i := 0; i < w; i++ {
-        usage := c.usage[i]
+    cnt := 0
+    for i := 0; i < w*2; i += 2 {
+        usage1 := c.usage[i]
+        usage2 := c.usage[i+1]
         for j := 0; j < graphHeight; j++ {
-            if (usage - (brailleGradient*4)) > 0 {
-                c.usageGraph[j][i] = '⣿'
-                usage -= (brailleGradient*4)
+            u1 := 0
+            u2 := 0
+            if (usage1 - (brailleGradient*4)) > 0 {
+                u1 = 4
+                usage1 -= (brailleGradient*4)
             } else {
-                a := float64(usage / brailleGradient)
+                a := float64(usage1 / brailleGradient)
                 switch {
                 case a < 1.0:
-                    c.usageGraph[j][i] = ' '
+                    u1 = 0
                 case 1.0 <= a && a < 2.0:
-                    c.usageGraph[j][i] = '⣀'
+                    u1 = 1
                 case 2.0 <= a && a < 3.0:
-                    c.usageGraph[j][i] = '⣤'
+                    u1 = 2
                 case 3.0 <= a && a < 4.0:
-                    c.usageGraph[j][i] = '⣶'
+                    u1 = 3
                 }
-                usage = 0
+                usage1 = 0
             }
+            if (usage2 - (brailleGradient*4)) > 0 {
+                u2 = 4
+                usage2 -= (brailleGradient*4)
+            } else {
+                a := float64(usage2 / brailleGradient)
+                switch {
+                case a < 1.0:
+                    u2 = 0
+                case 1.0 <= a && a < 2.0:
+                    u2 = 1
+                case 2.0 <= a && a < 3.0:
+                    u2 = 2
+                case 3.0 <= a && a < 4.0:
+                    u2 = 3
+                }
+                usage2 = 0
+            }
+            c.usageGraph[j][cnt] = upperGraphDots[u2][u1]
         }
+        cnt++
     }
 
     graph := []string{}
@@ -171,7 +209,7 @@ func (c *CPU) Draw(screen tcell.Screen) {
 
     color := setColorGradation(CPU_COLOR, len(graph))
     for i, line := range graph {
-        tview.Print(screen, line, x, y+1+i, w, tview.AlignRight, color[i])
+        tview.Print(screen, line, x, y+1+i, w, tview.AlignCenter, color[i])
     }
 
     l := len(graph)
@@ -181,8 +219,10 @@ func (c *CPU) Draw(screen tcell.Screen) {
 
 
 func (c *CPU)Update(u float64) {
-    l := len(c.usage)
+    l := len(c.usage) * 2
     _, _, w, _ := c.GetInnerRect()
+
+    w *= 2
 
     if l < w { w = l }
     for i := w-1; i >= 0; i-- {
@@ -230,6 +270,7 @@ func (m *Mem)Draw(screen tcell.Screen) {
     }
     brailleGradient := float64(100) / float64(graphHeight * 4)
 
+    /*
     // draw graph
     for i := 0; i < w; i++ {
         usage := m.usage[i]
@@ -253,6 +294,53 @@ func (m *Mem)Draw(screen tcell.Screen) {
             }
         }
     }
+    */
+    cnt := 0
+    for i := 0; i < w*2; i += 2 {
+        usage1 := m.usage[i]
+        usage2 := m.usage[i+1]
+        for j := 0; j < graphHeight; j++ {
+            u1 := 0
+            u2 := 0
+            if (usage1 - (brailleGradient*4)) > 0 {
+                u1 = 4
+                usage1 -= (brailleGradient*4)
+            } else {
+                a := float64(usage1 / brailleGradient)
+                switch {
+                case a < 1.0:
+                    u1 = 0
+                case 1.0 <= a && a < 2.0:
+                    u1 = 1
+                case 2.0 <= a && a < 3.0:
+                    u1 = 2
+                case 3.0 <= a && a < 4.0:
+                    u1 = 3
+                }
+                usage1 = 0
+            }
+            if (usage2 - (brailleGradient*4)) > 0 {
+                u2 = 4
+                usage2 -= (brailleGradient*4)
+            } else {
+                a := float64(usage2 / brailleGradient)
+                switch {
+                case a < 1.0:
+                    u2 = 0
+                case 1.0 <= a && a < 2.0:
+                    u2 = 1
+                case 2.0 <= a && a < 3.0:
+                    u2 = 2
+                case 3.0 <= a && a < 4.0:
+                    u2 = 3
+                }
+                usage2 = 0
+            }
+            m.usageGraph[j][cnt] = upperGraphDots[u2][u1]
+        }
+        cnt++
+    }
+
     graph := []string{}
 
     for i := 0; i <= graphHeight; i++ {
@@ -289,9 +377,10 @@ func (m *Mem)Update(max, used uint64){
     m.maxMem = max
     m.usedMem = used
 
-    l := len(m.usage)
+    l := len(m.usage) * 2
     _, _, w, _ := m.GetInnerRect()
 
+    w *= 2
     if l < w { w = l }
     for i := w-1; i >= 0; i-- {
         m.usage[i+1] = m.usage[i]
@@ -423,7 +512,6 @@ func (n *NIC)Draw(screen tcell.Screen) {
     if graphHeight < 0 {
         graphHeight = 0
     }
-    //brailleGradient := float64(100) / float64(graphHeight * 4)
 
     // Upload Bandwidth
     Uploadjudge = 0
@@ -435,29 +523,52 @@ func (n *NIC)Draw(screen tcell.Screen) {
         Uploadjudge = 1
     }
 
-
-    for i := 0; i < w-30; i++ {
-        bandwidth := n.ifList[n.index].bwUp[i]
-        for j := 0; j <= graphHeight; j++ {
-            if bandwidth > int64(float64(Uploadjudge) / float64(graphHeight)) {
-                n.bwGraphUp[j][i] = '⣿'
-                bandwidth -= int64(float64(Uploadjudge) / float64(graphHeight))
+    cnt := 0
+    for i := 0; i < (w*2) - 30; i += 2 {
+        usage1 := n.ifList[n.index].bwUp[i]
+        usage2 := n.ifList[n.index].bwUp[i+1]
+        for j := 0; j < graphHeight; j++ {
+            u1 := 0
+            u2 := 0
+            if usage1 > int64(float64(Uploadjudge) / float64(graphHeight)) {
+                u1 = 4
+                usage1 -= int64(float64(Uploadjudge) / float64(graphHeight))
             } else {
-                a := int(float64(bandwidth) / (float64(Uploadjudge) / float64(graphHeight*4)))
+                a := int(float64(usage1) / (float64(Uploadjudge) / float64(graphHeight*4)))
                 switch {
-                case a == 0:
-                    n.bwGraphUp[j][i] = ' '
-                case a == 1:
-                    n.bwGraphUp[j][i] = '⣀'
-                case a == 2:
-                    n.bwGraphUp[j][i] = '⣤'
-                case a == 3:
-                    n.bwGraphUp[j][i] = '⣶'
+                case 0 == a:
+                    u1 = 0
+                case 1 == a:
+                    u1 = 1
+                case 2 == a:
+                    u1 = 2
+                case 3 == a:
+                    u1 = 3
                 }
-                bandwidth = 0
+                usage1 = 0
             }
+            if usage2 > int64(float64(Uploadjudge) / float64(graphHeight))  {
+                u2 = 4
+                usage2 -= int64(float64(Uploadjudge) / float64(graphHeight))
+            } else {
+                a := int(float64(usage2) / (float64(Uploadjudge) / float64(graphHeight*4)))
+                switch {
+                case 0 == a:
+                    u2 = 0
+                case 1 == a:
+                    u2 = 1
+                case 2 == a:
+                    u2 = 2
+                case 3 == a:
+                    u2 = 3
+                }
+                usage2 = 0
+            }
+            n.bwGraphUp[j][cnt] = upperGraphDots[u2][u1]
         }
+        cnt++
     }
+
 
     // Download Bandwidth
     Downloadjudge = 0
@@ -469,27 +580,50 @@ func (n *NIC)Draw(screen tcell.Screen) {
         Downloadjudge = 1
     }
 
-    for i := 0; i < w-30; i++ {
-        bandwidth := n.ifList[n.index].bwDown[i]
-        for j := 0; j <= graphHeight; j++ {
-            if bandwidth > int64(float64(Downloadjudge) / float64(graphHeight)) {
-                n.bwGraphDown[j][i] = '⣿'
-                bandwidth -= int64(float64(Downloadjudge) / float64(graphHeight))
+    cnt = 0
+    for i := 0; i < (w*2) - 30; i += 2 {
+        usage1 := n.ifList[n.index].bwDown[i]
+        usage2 := n.ifList[n.index].bwDown[i+1]
+        for j := 0; j < graphHeight; j++ {
+            u1 := 0
+            u2 := 0
+            if usage1 > int64(float64(Downloadjudge) / float64(graphHeight)) {
+                u1 = 4
+                usage1 -= int64(float64(Downloadjudge) / float64(graphHeight))
             } else {
-                a := int(float64(bandwidth) / (float64(Downloadjudge) / float64(graphHeight*4)))
+                a := int(float64(usage1) / (float64(Downloadjudge) / float64(graphHeight*4)))
                 switch {
-                case a == 0:
-                    n.bwGraphDown[j][i] = ' '
-                case a == 1:
-                    n.bwGraphDown[j][i] = '⠉'
-                case a == 2:
-                    n.bwGraphDown[j][i] = '⠛'
-                case a == 3:
-                    n.bwGraphDown[j][i] = '⠿'
+                case 0 == a:
+                    u1 = 0
+                case 1 == a:
+                    u1 = 1
+                case 2 == a:
+                    u1 = 2
+                case 3 == a:
+                    u1 = 3
                 }
-                bandwidth = 0
+                usage1 = 0
             }
+            if usage2 > int64(float64(Downloadjudge) / float64(graphHeight))  {
+                u2 = 4
+                usage2 -= int64(float64(Downloadjudge) / float64(graphHeight))
+            } else {
+                a := int(float64(usage2) / (float64(Downloadjudge) / float64(graphHeight*4)))
+                switch {
+                case 0 == a:
+                    u2 = 0
+                case 1 == a:
+                    u2 = 1
+                case 2 == a:
+                    u2 = 2
+                case 3 == a:
+                    u2 = 3
+                }
+                usage2 = 0
+            }
+            n.bwGraphDown[j][cnt] = lowerGraphDots[u2][u1]
         }
+        cnt++
     }
 
     graphUP := []string{}

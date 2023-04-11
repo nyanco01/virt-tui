@@ -270,31 +270,6 @@ func (m *Mem)Draw(screen tcell.Screen) {
     }
     brailleGradient := float64(100) / float64(graphHeight * 4)
 
-    /*
-    // draw graph
-    for i := 0; i < w; i++ {
-        usage := m.usage[i]
-        for j := 0; j < graphHeight; j++ {
-            if (usage - (brailleGradient*4)) > 0 {
-                m.usageGraph[j][i] = '⣿'
-                usage -= (brailleGradient*4)
-            } else {
-                a := int(usage / brailleGradient)
-                switch {
-                case a == 0:
-                    m.usageGraph[j][i] = ' '
-                case a == 1:
-                    m.usageGraph[j][i] = '⣀'
-                case a == 2:
-                    m.usageGraph[j][i] = '⣤'
-                case a == 3:
-                    m.usageGraph[j][i] = '⣶'
-                }
-                usage = 0
-            }
-        }
-    }
-    */
     cnt := 0
     for i := 0; i < w*2; i += 2 {
         usage1 := m.usage[i]
@@ -792,8 +767,9 @@ func (n *NIC)Update(dom *libvirt.Domain) {
             n.ifList[i].oldDown = rxByte
         }
         // Upload
-        l := len(n.ifList[i].bwUp)
+        l := len(n.ifList[i].bwUp) * 2
         _, _, w, _ := n.GetInnerRect()
+        w *= 2
         if l < w { w = l }
         for j := w-1; j >= 0; j-- {
             n.ifList[i].bwUp[j+1] = n.ifList[i].bwUp[j]
@@ -801,8 +777,7 @@ func (n *NIC)Update(dom *libvirt.Domain) {
         n.ifList[i].bwUp[0] = txByte - n.ifList[i].oldUp
 
         // Download
-        l = len(n.ifList[i].bwDown)
-        _, _, w, _ = n.GetInnerRect()
+        l = len(n.ifList[i].bwDown) * 2
         if l < w { w = l }
         for j := w-1; j >= 0; j-- {
             n.ifList[i].bwDown[j+1] = n.ifList[i].bwDown[j]

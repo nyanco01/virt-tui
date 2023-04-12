@@ -217,7 +217,7 @@ func DownloadCloudIMG(ostype string, c chan float64) {
     case "Ubuntu20.04":
         DownloadFile("https://cloud-images.ubuntu.com/releases/focal/release-20220824/ubuntu-20.04-server-cloudimg-amd64.img", "./data/image", c)
     case "Ubuntu22.04":
-        DownloadFile("https://cloud-images.ubuntu.com/releases/jammy/release-20221214/ubuntu-22.04-server-cloudimg-amd64.img", "./data/image", c)
+        DownloadFile("https://cloud-images.ubuntu.com/releases/jammy/release-20230107/ubuntu-22.04-server-cloudimg-amd64.img", "./data/image", c)
     case "CentOS8":
         DownloadFile("https://cloud.centos.org/centos/8-stream/x86_64/images/CentOS-Stream-GenericCloud-8-20200113.0.x86_64.qcow2", "./data/image", c)
     case "CentOS9":

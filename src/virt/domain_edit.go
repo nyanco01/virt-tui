@@ -79,16 +79,22 @@ func GetDomainItems(dom * libvirt.Domain) (items []EditItem, diskNum int, ifaceN
         s := ""
         t := ""
         m := ""
+        mo := ""
         if iface.Driver != nil {
             d = iface.Driver.Name
             t = "hostdev"
         }
         if iface.Source != nil {
-            s = iface.Source.Bridge.Bridge
-            t = "bridge"
+            if iface.Source.Bridge != nil {
+                s = iface.Source.Bridge.Bridge
+                t = "bridge"
+            }
         }
         if iface.MAC != nil {
             m = iface.MAC.Address
+        }
+        if iface.Model != nil {
+            mo = iface.Model.Type
         }
         ifaceNum++
         xml, _ := iface.Marshal()
@@ -96,7 +102,7 @@ func GetDomainItems(dom * libvirt.Domain) (items []EditItem, diskNum int, ifaceN
             IfType:     t,
             Driver:     d,
             Source:     s,
-            Model:      iface.Model.Type,
+            Model:      mo,
             MACAddr:    m,
             ItemXML:    xml,
         })
